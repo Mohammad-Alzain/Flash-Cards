@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Flashcards",
+    "slug": "flashcards-app",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#131F24"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.local.flashcards"
+    },
+    "android": {
+      "backgroundColor": "#131F24",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#131F24"
+      },
+      "package": "com.local.flashcards",
+      "allowBackup": false,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM"
+      ],
+      "androidNavigationBar": {
+        "visible": "sticky-immersive"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-sqlite",
+      "expo-localization",
+      "expo-asset"
+    ],
+    "scheme": "flashcards",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "94a36fb4-f242-4970-9a36-1584da06fa05"
+      }
+    },
+    "owner": "mohammad-alzains-team"
+  }
+}

@@ -6,6 +6,17 @@ const getMediaDir = (): string => {
   return FileSystem.documentDirectory ? `${FileSystem.documentDirectory}media/` : '';
 };
 
+const mediaCache = new Map<string, string | null>();
+
+function toSafeFileUri(uri: string): string {
+  try {
+    const decoded = decodeURI(uri);
+    return encodeURI(decoded).replace(/#/g, '%23');
+  } catch {
+    return uri;
+  }
+}
+
 export const mediaManager = {
   getMediaDirectory(): string {
     return getMediaDir();
@@ -26,11 +37,129 @@ export const mediaManager = {
 
   resolveUri(filename: string): string {
     if (!filename) return '';
-    if (filename.startsWith('http://') || filename.startsWith('https://') || filename.startsWith('file://')) {
-      return filename;
+    // Strip Anki [sound:...] wrapper if present
+    const clean = filename.replace(/^\[sound:/i, '').replace(/\]$/, '').trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('file://')) {
+      return clean;
     }
     const dir = getMediaDir();
-    return dir ? `${dir}${filename}` : filename;
+    return dir ? `${dir}${clean}` : clean;
+  },
+
+  /**
+   * Resolves a media filename to a valid file:// URI.
+   * Tries: original name, decodeURIComponent, encodeURI, NFC/NFD Unicode normalization,
+   * and case-insensitive directory listing fallback.
+   * Returns valid file:// URI or null if not found.
+   */
+  async resolveMediaUri(filename: string): Promise<string | null> {
+    if (!filename) return null;
+
+    let clean = filename
+      .replace(/^\[sound:/i, '')
+      .replace(/\]$/, '')
+      .replace(/^['"]|['"]$/g, '')
+      .replace(/^\.\//, '')
+      .replace(/&amp;/g, '&')
+      .trim();
+
+    if (!clean) return null;
+
+    if (
+      clean.startsWith('http://') ||
+      clean.startsWith('https://') ||
+      clean.startsWith('data:')
+    ) {
+      return clean;
+    }
+
+    if (mediaCache.has(clean)) {
+      return mediaCache.get(clean) || null;
+    }
+
+    const dir = getMediaDir();
+    if (!dir) return null;
+
+    // Candidate variations
+    const candidates = new Set<string>();
+    candidates.add(clean);
+
+    try {
+      candidates.add(decodeURIComponent(clean));
+    } catch {}
+
+    try {
+      candidates.add(encodeURI(clean));
+    } catch {}
+
+    // NFC and NFD Unicode normalization (e.g. macOS vs Android/Anki)
+    for (const cand of Array.from(candidates)) {
+      try {
+        candidates.add(cand.normalize('NFC'));
+        candidates.add(cand.normalize('NFD'));
+      } catch {}
+    }
+
+    // Direct check for each candidate
+    for (const cand of candidates) {
+      const fullPath = cand.startsWith('file://') ? cand : `${dir}${cand}`;
+      const safeUri = toSafeFileUri(fullPath);
+      try {
+        const info = await FileSystem.getInfoAsync(safeUri);
+        if (info && info.exists) {
+          mediaCache.set(clean, safeUri);
+          console.log(`[MEDIA] Found file on disk: "${cand}" -> "${safeUri}" (exists: true)`);
+          return safeUri;
+        }
+      } catch {}
+    }
+
+    // Directory listing fallback for case-insensitivity or subtle naming mismatches
+    try {
+      const files = await FileSystem.readDirectoryAsync(dir);
+      const targetLower = clean.toLowerCase();
+      let decodedLower = targetLower;
+      try {
+        decodedLower = decodeURIComponent(clean).toLowerCase();
+      } catch {}
+
+      const matched = files.find((f) => {
+        const fLower = f.toLowerCase();
+        return (
+          fLower === targetLower ||
+          fLower === decodedLower ||
+          f.normalize('NFC').toLowerCase() === targetLower ||
+          f.normalize('NFD').toLowerCase() === targetLower
+        );
+      });
+
+      if (matched) {
+        const safeUri = toSafeFileUri(`${dir}${matched}`);
+        mediaCache.set(clean, safeUri);
+        console.log(`[MEDIA] Found file via directory listing: "${matched}" -> "${safeUri}" (exists: true)`);
+        return safeUri;
+      }
+    } catch (e) {
+      // Safe ignore
+    }
+
+    mediaCache.set(clean, null);
+    console.log(`[MEDIA] File not found on disk: "${clean}" (exists: false)`);
+    return null;
+  },
+
+  /**
+   * Resolves the existing file URI checking raw, decoded, and encoded filename variations.
+   * Returns null if file does not exist on disk.
+   */
+  async findExistingUri(filename: string): Promise<string | null> {
+    return this.resolveMediaUri(filename);
+  },
+
+  async fileExists(filename: string): Promise<boolean> {
+    if (!filename) return false;
+    const existing = await this.resolveMediaUri(filename);
+    return existing !== null;
   },
 
   async saveMediaFile(
@@ -72,6 +201,7 @@ export const mediaManager = {
   },
 
   async deleteMediaFile(filename: string): Promise<void> {
+    mediaCache.clear();
     const fullUri = this.resolveUri(filename);
     const fileInfo = await FileSystem.getInfoAsync(fullUri);
     if (fileInfo.exists) {
@@ -83,6 +213,7 @@ export const mediaManager = {
   },
 
   async clearAllMedia(): Promise<void> {
+    mediaCache.clear();
     const dir = getMediaDir();
     if (dir) {
       try {

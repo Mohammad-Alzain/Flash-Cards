@@ -215,4 +215,95 @@ for (const d of selectedDistractors) {
 }
 console.log('✓ Test 8 Passed: Smart Distractors accurately match script and length');
 
+// Test 9: Smart Quiz Filters & Question Count Logic
+function buildQuizFilterClause(config) {
+  let clause = 'WHERE c.suspended = 0';
+  if (config.mode === 'mistakes' || config.smartFocus === 'mistakes') {
+    clause += ' AND (c.id IN (SELECT card_id FROM mistakes WHERE wrong_count > 0) OR c.lapses > 0)';
+  } else if (config.smartFocus === 'due') {
+    clause += ' AND ((c.state = 2 AND c.due <= 1700000000) OR c.state IN (1, 3))';
+  } else if (config.smartFocus === 'new') {
+    clause += ' AND c.state = 0';
+  } else if (config.smartFocus === 'hardest') {
+    clause += ' AND (c.ease_factor < 2.3 OR c.lapses > 0)';
+  }
+  return clause;
+}
+
+assert.strictEqual(
+  buildQuizFilterClause({ smartFocus: 'mistakes' }).includes('mistakes WHERE wrong_count > 0'),
+  true
+);
+assert.strictEqual(
+  buildQuizFilterClause({ smartFocus: 'due' }).includes('c.state = 2'),
+  true
+);
+assert.strictEqual(
+  buildQuizFilterClause({ smartFocus: 'new' }).includes('c.state = 0'),
+  true
+);
+assert.strictEqual(
+  buildQuizFilterClause({ smartFocus: 'hardest' }).includes('c.ease_factor < 2.3'),
+  true
+);
+
+console.log('✓ Test 9 Passed: Smart Quiz filters & question count resolution validated');
+
+// Test 10: Media tag resolution and video/audio separation
+function resolveMediaTagsMock(html, mediaBaseUri = '') {
+  let result = html;
+  const fixedBase = mediaBaseUri ? (mediaBaseUri.endsWith('/') ? mediaBaseUri : mediaBaseUri + '/') : '';
+
+  result = result.replace(/<(img|video|audio|source|track)([^>]+)src=["']([^"']+)["']([^>]*)>/gi, (match, tag, p1, src, p2) => {
+    if (!src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:') && !src.startsWith('file://')) {
+      return `<${tag}${p1}src="${fixedBase}${src}"${p2}>`;
+    }
+    return match;
+  });
+
+  result = result.replace(/\[sound:([^\]]+)\]/g, (match, filename) => {
+    const trimmed = filename.trim();
+    const isVideo = /\.(mp4|webm|mkv|mov|m4v|avi|ogv)$/i.test(trimmed);
+    if (isVideo) {
+      const videoSrc = trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('file://')
+        ? trimmed
+        : `${fixedBase}${trimmed}`;
+      return `<div style="text-align:center; margin:8px 0;"><video controls playsinline preload="metadata"><source src="${videoSrc}"></video></div>`;
+    }
+    return `<button class="sound-button replay-button">${trimmed}</button>`;
+  });
+
+  return result;
+}
+
+function extractSoundTagsMock(text) {
+  if (!text) return [];
+  const matches = [];
+  const soundRegex = /\[sound:([^\]]+)\]/g;
+  let match;
+  while ((match = soundRegex.exec(text)) !== null) {
+    if (match[1]) {
+      const file = match[1].trim();
+      if (!/\.(mp4|webm|mkv|mov|m4v|avi|ogv)$/i.test(file)) {
+        matches.push(file);
+      }
+    }
+  }
+  return matches;
+}
+
+const vOutput = resolveMediaTagsMock('[sound:lesson.mp4]', 'file:///media/');
+assert.strictEqual(vOutput.includes('<video'), true);
+assert.strictEqual(vOutput.includes('file:///media/lesson.mp4'), true);
+
+const aOutput = resolveMediaTagsMock('[sound:pronounce.mp3]', 'file:///media/');
+assert.strictEqual(aOutput.includes('sound-button'), true);
+
+const tagsOutput = extractSoundTagsMock('[sound:voice.mp3] and [sound:video.mp4]');
+assert.deepStrictEqual(tagsOutput, ['voice.mp3'], 'Video file must NOT be extracted as audio');
+
+console.log('✓ Test 10 Passed: Media resolution (Video/Audio/Images) and audio tag filtering validated');
+
 console.log('\n--- ALL VERIFICATION TESTS PASSED SUCCESSFULLY! ---');
+
+

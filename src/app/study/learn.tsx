@@ -87,17 +87,32 @@ export default function LearnNewScreen() {
       await new Promise((r) => setTimeout(r, 200));
       if (isCancelled) return;
 
+      let anyPlayed = false;
       // Play front audio then back audio
       if (rendered?.frontAudio && rendered.frontAudio.length > 0) {
         for (const file of rendered.frontAudio) {
           if (isCancelled) break;
-          await audioService.playAndWait(file);
+          const ok = await audioService.playAndWait(file);
+          if (ok) anyPlayed = true;
         }
       }
       if (rendered?.backAudio && rendered.backAudio.length > 0) {
         for (const file of rendered.backAudio) {
           if (isCancelled) break;
-          await audioService.playAndWait(file);
+          const ok = await audioService.playAndWait(file);
+          if (ok) anyPlayed = true;
+        }
+      }
+
+      if (!anyPlayed && !isCancelled) {
+        const textToSpeak =
+          currentCard?.note_fields?.Front ||
+          currentCard?.note_fields?.Back ||
+          Object.values(currentCard?.note_fields || {})[0] ||
+          '';
+        if (textToSpeak) {
+          console.log(`[MEDIA] Learn audio file missing, falling back to TTS: "${textToSpeak}"`);
+          await TtsService.speak(textToSpeak);
         }
       }
     };
@@ -125,18 +140,21 @@ export default function LearnNewScreen() {
     } catch (e) {}
 
     const audioList = [...(rendered?.frontAudio || []), ...(rendered?.backAudio || [])];
-
+    let anyPlayed = false;
     if (audioList && audioList.length > 0) {
       for (const file of audioList) {
-        await audioService.playAndWait(file);
+        const ok = await audioService.playAndWait(file);
+        if (ok) anyPlayed = true;
       }
-    } else {
+    }
+    if (!anyPlayed) {
       const textToSpeak =
-        currentCard?.note_fields?.Back ||
         currentCard?.note_fields?.Front ||
+        currentCard?.note_fields?.Back ||
         Object.values(currentCard?.note_fields || {})[0] ||
         '';
       if (textToSpeak) {
+        console.log(`[MEDIA] Learn replay audio fallback to TTS: "${textToSpeak}"`);
         TtsService.speak(textToSpeak);
       }
     }

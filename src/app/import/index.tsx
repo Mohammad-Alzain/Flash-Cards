@@ -42,6 +42,9 @@ import { deckRepository, DeckWithCounts } from '../../core/db/repositories/deckR
 import { noteRepository } from '../../core/db/repositories/noteRepository';
 import { NoteType } from '../../core/types/models';
 import { fileReader } from '../../core/utils/fileReader';
+import { ErrorModal } from '../../components/common/ErrorModal';
+import { reportError, AppErrorDetails } from '../../core/utils/errorHandler';
+import { setImportingState } from '../../core/db/connection';
 
 export default function ImportWizardScreen() {
   const { colors, typography, spacing } = useTheme();
@@ -79,6 +82,7 @@ export default function ImportWizardScreen() {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [activeError, setActiveError] = useState<AppErrorDetails | null>(null);
   const stagedFileUriRef = React.useRef<string | null>(null);
 
   useEffect(() => {
@@ -188,6 +192,7 @@ export default function ImportWizardScreen() {
     }
 
     setImporting(true);
+    setImportingState(true);
     setImportSummary(null);
     const startTime = Date.now();
 
@@ -272,9 +277,11 @@ export default function ImportWizardScreen() {
             : 'This package was exported with Anki\'s new format without backwards compatibility.\n\nIn Anki / AnkiDroid, please export it again and tick "Support older Anki versions", then re-import the file.'
         );
       } else {
-        CustomAlert.alert(t('common.error'), e.message || t('import_wizard.import_failed'));
+        const errDetails = reportError('Import Execution', e, t('import_wizard.import_failed'));
+        setActiveError(errDetails);
       }
     } finally {
+      setImportingState(false);
       setImporting(false);
       setImportProgress(null);
     }
@@ -623,6 +630,12 @@ export default function ImportWizardScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ErrorModal
+        visible={activeError !== null}
+        error={activeError}
+        onClose={() => setActiveError(null)}
+      />
     </SafeAreaView>
   );
 }

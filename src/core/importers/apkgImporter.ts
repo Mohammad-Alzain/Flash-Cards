@@ -10,6 +10,7 @@ if (Platform.OS !== 'web') {
 import { decompress as decompressZstd } from 'fzstd';
 import { mediaManager } from '../media/mediaManager';
 import { noteRepository } from '../db/repositories/noteRepository';
+import { withDatabaseLock } from '../db/connection';
 import { openZipArchive, IZipArchive, writeBytesToDisk } from './zipReader';
 import {
   ImportPreviewResult,
@@ -478,56 +479,60 @@ export const apkgImporter = {
           });
         }
 
-        // Auto-create or update note types in local database with exact templates & CSS
-        const existingNoteTypes = await noteRepository.getAllNoteTypes();
+        // Auto-create or map note types in local database with exact templates & CSS inside withDatabaseLock
         const modelIdToLocalNoteTypeId = new Map<string, string>();
 
-        for (const model of parsedModels) {
-          const lowerName = model.name.toLowerCase();
-          const existing = existingNoteTypes.find((nt) => nt.name.toLowerCase() === lowerName);
+        await withDatabaseLock(async (mainDb) => {
+          const existingNoteTypes = await mainDb.getAllAsync<{ id: string; name: string }>(
+            'SELECT id, name FROM note_types;'
+          );
 
-          const formattedFields = model.fields.map((f: string, ord: number) => ({
-            id: `fld_${ord}`,
-            name: f,
-            ord,
-          }));
+          for (const model of parsedModels) {
+            const lowerName = model.name.toLowerCase();
+            const existing = existingNoteTypes.find((nt) => nt.name.toLowerCase() === lowerName);
 
-          const formattedTemplates = model.templates.map((t: any, ord: number) => ({
-            id: `tmpl_${ord}`,
-            name: t.name,
-            ord: t.ord ?? ord,
-            qfmt: t.qfmt,
-            afmt: t.afmt,
-            front_html: t.qfmt || '{{Front}}',
-            back_html: t.afmt || '{{Back}}',
-          }));
+            const formattedFields = model.fields.map((f: string, ord: number) => ({
+              id: `fld_${ord}`,
+              name: f,
+              ord,
+            }));
 
-          try {
+            const formattedTemplates = model.templates.map((t: any, ord: number) => ({
+              id: `tmpl_${ord}`,
+              name: t.name,
+              ord: t.ord ?? ord,
+              qfmt: t.qfmt,
+              afmt: t.afmt,
+              front_html: t.qfmt || '{{Front}}',
+              back_html: t.afmt || '{{Back}}',
+            }));
+
             if (existing) {
-              // Update existing note type if it was a default seed or to ensure latest CSS and templates match APKG
-              await noteRepository.updateNoteType(existing.id, {
-                fields: formattedFields,
-                templates: formattedTemplates,
-                css: model.css || existing.css,
-              });
               modelIdToLocalNoteTypeId.set(String(model.id), existing.id);
               modelIdToLocalNoteTypeId.set(lowerName, existing.id);
             } else {
-              const created = await noteRepository.createNoteType({
+              const newId = `nt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+              const now = Date.now();
+              await mainDb.runAsync(
+                `INSERT INTO note_types (id, name, fields_json, templates_json, css, is_cloze, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?);`,
+                newId,
+                model.name,
+                JSON.stringify(formattedFields),
+                JSON.stringify(formattedTemplates),
+                model.css || '.card { font-size: 20px; text-align: center; }',
+                model.isCloze ? 1 : 0,
+                now
+              );
+              modelIdToLocalNoteTypeId.set(String(model.id), newId);
+              modelIdToLocalNoteTypeId.set(lowerName, newId);
+              existingNoteTypes.push({
+                id: newId,
                 name: model.name,
-                fields: formattedFields,
-                templates: formattedTemplates,
-                css: model.css,
-                isCloze: model.isCloze,
               });
-              modelIdToLocalNoteTypeId.set(String(model.id), created.id);
-              modelIdToLocalNoteTypeId.set(lowerName, created.id);
-              existingNoteTypes.push(created);
             }
-          } catch (ntErr) {
-            console.warn('[APKG Import] Failed to create/update note type:', model.name, ntErr);
           }
-        }
+        });
 
         // Paged query for notes (Section 3: WHERE id > ? ORDER BY id ASC LIMIT 1000)
         const notesMap = new Map<string, any>();

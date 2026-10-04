@@ -6,8 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
 import { isRTL } from '../../i18n';
-import { Header, Card, Chip, TextField } from '../../components/ui';
+import { Header, Card, Chip, TextField, Button } from '../../components/ui';
 import { settingsRepository } from '../../core/db/repositories/settingsRepository';
+import { notificationService } from '../../core/notifications/notificationService';
 
 export default function StudySettingsScreen() {
   const router = useRouter();
@@ -20,6 +21,9 @@ export default function StudySettingsScreen() {
   const [dailyReviewLimit, setDailyReviewLimit] = useState('100');
   const [rolloverHour, setRolloverHour] = useState('4');
   const [autoPlayAudio, setAutoPlayAudio] = useState(true);
+  const [quickCardOnOpen, setQuickCardOnOpen] = useState(false);
+  const [notificationCards, setNotificationCards] = useState(true);
+  const [testingNotif, setTestingNotif] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -28,12 +32,16 @@ export default function StudySettingsScreen() {
       settingsRepository.get('daily_review_limit', '100'),
       settingsRepository.get('rollover_hour', '4'),
       settingsRepository.get('auto_play_audio', '1'),
-    ]).then(([algo, newLim, revLim, roll, audio]) => {
+      settingsRepository.get('quick_card_on_open', '0'),
+      settingsRepository.get('notification_cards_enabled', '1'),
+    ]).then(([algo, newLim, revLim, roll, audio, quickCard, notifCards]) => {
       setAlgorithm(algo as any);
       setDailyNewLimit(String(newLim));
       setDailyReviewLimit(String(revLim));
       setRolloverHour(String(roll));
       setAutoPlayAudio(audio !== '0');
+      setQuickCardOnOpen(quickCard === '1');
+      setNotificationCards(notifCards !== '0');
     });
   }, []);
 
@@ -60,6 +68,22 @@ export default function StudySettingsScreen() {
   const handleAudioToggle = async (val: boolean) => {
     setAutoPlayAudio(val);
     await settingsRepository.set('auto_play_audio', val ? '1' : '0');
+  };
+
+  const handleQuickCardToggle = async (val: boolean) => {
+    setQuickCardOnOpen(val);
+    await settingsRepository.set('quick_card_on_open', val ? '1' : '0');
+  };
+
+  const handleNotificationCardsToggle = async (val: boolean) => {
+    setNotificationCards(val);
+    await settingsRepository.set('notification_cards_enabled', val ? '1' : '0');
+  };
+
+  const handleTestNotification = async () => {
+    setTestingNotif(true);
+    await notificationService.sendInteractiveFlashcardNotification();
+    setTestingNotif(false);
   };
 
   return (
@@ -168,6 +192,88 @@ export default function StudySettingsScreen() {
               value={autoPlayAudio}
               onValueChange={handleAudioToggle}
               trackColor={{ true: colors.primary, false: colors.border }}
+            />
+          </View>
+        </Card>
+
+        {/* Study Without Opening App Card */}
+        <Card style={[styles.card, { marginBottom: spacing.lg }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.primary}
+              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
+            />
+            <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
+              {rtl ? 'الدراسة بدون فتح التطبيق' : 'Study Without Opening the App'}
+            </Text>
+          </View>
+
+          <Text style={[styles.cardDescription, { color: colors.textSecondary, textAlign: rtl ? 'right' : 'left', marginBottom: 14 }]}>
+            {rtl
+              ? 'ميزات ذكية تتيح لك تثبيت الحفظ أثناء استخدامك العادي للهاتف دون الحاجة للدخول لجلسة دراسة كاملة'
+              : 'Smart ambient learning features while using your phone normally'}
+          </Text>
+
+          {/* Feature 1: Notification Cards */}
+          <View style={{ paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}>
+            <View style={[styles.rowBetween, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              <View style={{ flex: 1, paddingRight: rtl ? 0 : 12, paddingLeft: rtl ? 12 : 0 }}>
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700', textAlign: rtl ? 'right' : 'left' }}>
+                  {rtl ? 'بطاقات تفاعلية في الإشعارات' : 'Interactive Notification Cards'}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2, textAlign: rtl ? 'right' : 'left' }}>
+                  {rtl
+                    ? 'يصلك إشعار بالكلمة مع زرين (أعرفها / لا أعرفها) للإجابة والمراجعة مباشرة من شريط الإشعارات.'
+                    : 'Get card prompts with Know / Don\'t Know actions directly in your notification shade.'}
+                </Text>
+              </View>
+              <Switch
+                value={notificationCards}
+                onValueChange={handleNotificationCardsToggle}
+                trackColor={{ true: colors.primary, false: colors.border }}
+              />
+            </View>
+
+            {notificationCards && (
+              <Button
+                title={testingNotif ? (rtl ? 'جاري الإرسال...' : 'Sending...') : (rtl ? '🔔 تجربة إرسال بطاقة في الإشعارات الآن' : 'Test Notification Card Now')}
+                variant="secondary"
+                size="sm"
+                onPress={handleTestNotification}
+                disabled={testingNotif}
+                style={{ marginTop: 10 }}
+              />
+            )}
+          </View>
+
+          {/* Feature 2: Quick Unlock Card */}
+          <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}>
+            <View style={[styles.rowBetween, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              <View style={{ flex: 1, paddingRight: rtl ? 0 : 12, paddingLeft: rtl ? 12 : 0 }}>
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700', textAlign: rtl ? 'right' : 'left' }}>
+                  {rtl ? 'سؤال عند فتح الهاتف / التطبيق' : 'Quick Card on App Open'}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2, textAlign: rtl ? 'right' : 'left' }}>
+                  {rtl
+                    ? 'بطاقة واحدة سريعة تجيب عليها وتمر عليها قبل فتح الشاشة الرئيسية لاستغلال كل لحظة.'
+                    : 'A single flashcard you answer upon unlocking or opening the app before accessing the home screen.'}
+                </Text>
+              </View>
+              <Switch
+                value={quickCardOnOpen}
+                onValueChange={handleQuickCardToggle}
+                trackColor={{ true: colors.primary, false: colors.border }}
+              />
+            </View>
+
+            <Button
+              title={rtl ? '⚡ معاينة وتجربة بطاقة الفتح السريعة' : 'Preview Quick Unlock Card'}
+              variant="secondary"
+              size="sm"
+              onPress={() => router.push('/modal/quick-card')}
+              style={{ marginTop: 10 }}
             />
           </View>
         </Card>

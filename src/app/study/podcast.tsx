@@ -256,9 +256,11 @@ export default function PodcastModeScreen() {
 
     // 1. Play Word Audio (الكلمة)
     setPhase('word');
+    let playedWord = false;
     if (tracks.wordAudio) {
-      await audioService.playAndWait(tracks.wordAudio);
-    } else if (tracks.wordText) {
+      playedWord = await audioService.playAndWait(tracks.wordAudio);
+    }
+    if (!playedWord && tracks.wordText) {
       await new Promise<void>((resolve) => {
         TtsService.speak(tracks.wordText, {
           rate: speechRate,
@@ -285,9 +287,11 @@ export default function PodcastModeScreen() {
 
     // 3. Play Explanation Audio (مقطع الشرح / المعنى)
     setPhase('explanation');
+    let playedExp = false;
     if (tracks.explanationAudio) {
-      await audioService.playAndWait(tracks.explanationAudio);
-    } else if (tracks.explanationText && !tracks.explanationText.includes('<img')) {
+      playedExp = await audioService.playAndWait(tracks.explanationAudio);
+    }
+    if (!playedExp && tracks.explanationText && !tracks.explanationText.includes('<img')) {
       await new Promise<void>((resolve) => {
         TtsService.speak(tracks.explanationText, {
           rate: speechRate,
@@ -307,9 +311,11 @@ export default function PodcastModeScreen() {
     // 4. Play Example Audio (مقطع المثال)
     if (tracks.exampleAudio || (tracks.exampleText && !tracks.exampleText.includes('<img'))) {
       setPhase('example');
+      let playedEx = false;
       if (tracks.exampleAudio) {
-        await audioService.playAndWait(tracks.exampleAudio);
-      } else if (tracks.exampleText) {
+        playedEx = await audioService.playAndWait(tracks.exampleAudio);
+      }
+      if (!playedEx && tracks.exampleText) {
         await new Promise<void>((resolve) => {
           TtsService.speak(tracks.exampleText, {
             rate: speechRate,

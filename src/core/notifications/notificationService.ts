@@ -6,20 +6,26 @@ import { Rating } from '../scheduler/types';
 import { cleanTextForQuiz } from '../quiz/generator';
 import { mistakesManager } from '../quiz/mistakesManager';
 
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+
 let Notifications: any = null;
-try {
-  Notifications = require('expo-notifications');
-  if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+if (!isExpoGo) {
+  try {
+    Notifications = require('expo-notifications');
+    if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+    }
+  } catch (e) {
+    // Gracefully fallback when notifications are unavailable in current environment
   }
-} catch (e) {
-  // Gracefully fallback when notifications are unavailable in current environment
 }
 
 export const FLASHCARD_CATEGORY = 'FLASHCARD_INTERACTIVE_REVIEW';
@@ -163,7 +169,7 @@ export const notificationService = {
       } else if (actionId === ACTION_DONT_KNOW) {
         // User doesn't know the card: Rating.Again (1)
         await queueBuilder.answerCard(card, Rating.Again, 4000);
-        await mistakesManager.recordMistake(card.id, 'notification_review');
+        await mistakesManager.recordWrongAnswer(card.id);
 
         if (Notifications && typeof Notifications.scheduleNotificationAsync === 'function') {
           await Notifications.scheduleNotificationAsync({

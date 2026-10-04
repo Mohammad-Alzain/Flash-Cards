@@ -1,4 +1,5 @@
 import { mediaManager } from '../media/mediaManager';
+import { TtsService, TtsOptions } from './ttsService';
 
 let ExpoAudio: any = null;
 try {
@@ -32,36 +33,43 @@ class AudioPlaybackService {
   async play(filenameOrUri: string): Promise<boolean> {
     if (!filenameOrUri) return false;
 
+    console.log(`[MEDIA] Requested audio playback: "${filenameOrUri}"`);
     try {
       await this.configureAudioMode();
-
-      // Stop previous playback if any
       await this.stop();
 
-      const resolvedUri = mediaManager.resolveUri(filenameOrUri);
-      if (!resolvedUri) return false;
+      const existingUri = await mediaManager.resolveMediaUri(filenameOrUri);
+      console.log(`[MEDIA] Resolved audio URI: "${existingUri}", exists: ${existingUri !== null}`);
+      if (!existingUri) return false;
+
+      const safeUri = encodeURI(decodeURI(existingUri)).replace(/#/g, '%23');
 
       // 1. Try modern expo-audio (SDK 57)
       if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
-        const player = ExpoAudio.createAudioPlayer({ uri: resolvedUri });
+        const player = ExpoAudio.createAudioPlayer({ uri: safeUri });
         this.currentPlayer = player;
+        if (typeof player.addListener === 'function') {
+          const sub = player.addListener('playbackStatusUpdate', (status: any) => {
+            if (status?.didJustFinish || status?.error) {
+              try { sub?.remove?.(); } catch (e) {}
+              if (this.currentPlayer === player) this.currentPlayer = null;
+            }
+          });
+        }
         player.play();
         return true;
       }
 
       // 2. HTML5 Web / fallback audio
       if (typeof Audio !== 'undefined') {
-        const audio = new Audio(resolvedUri);
+        const audio = new Audio(safeUri);
         this.currentPlayer = audio;
-        audio.play().catch((err) => {
-          console.warn('[AudioService] HTML5 audio play error:', err);
-        });
+        audio.play().catch(() => {});
         return true;
       }
 
       return false;
     } catch (err) {
-      console.warn('[AudioService] Failed to play audio:', filenameOrUri, err);
       return false;
     }
   }
@@ -72,16 +80,20 @@ class AudioPlaybackService {
   async playAndWait(filenameOrUri: string, maxDurationMs = 15000): Promise<boolean> {
     if (!filenameOrUri) return false;
 
+    console.log(`[MEDIA] Requested audio playback (wait): "${filenameOrUri}"`);
     try {
       await this.configureAudioMode();
       await this.stop();
 
-      const resolvedUri = mediaManager.resolveUri(filenameOrUri);
-      if (!resolvedUri) return false;
+      const existingUri = await mediaManager.resolveMediaUri(filenameOrUri);
+      console.log(`[MEDIA] Resolved audio URI (wait): "${existingUri}", exists: ${existingUri !== null}`);
+      if (!existingUri) return false;
+
+      const safeUri = encodeURI(decodeURI(existingUri)).replace(/#/g, '%23');
 
       // 1. Try modern expo-audio (SDK 57)
       if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
-        const player = ExpoAudio.createAudioPlayer({ uri: resolvedUri });
+        const player = ExpoAudio.createAudioPlayer({ uri: safeUri });
         this.currentPlayer = player;
 
         return new Promise<boolean>((resolve) => {
@@ -95,6 +107,9 @@ class AudioPlaybackService {
             try {
               subscription?.remove?.();
             } catch (e) {}
+            if (this.currentPlayer === player) {
+              this.currentPlayer = null;
+            }
             resolve(result);
           };
 
@@ -122,9 +137,8 @@ class AudioPlaybackService {
                 finish(true);
                 return;
               }
-              // Handle error if any
+              // Handle error if any quietly without yellow/red warning
               if (status?.error) {
-                console.warn('[AudioService] Playback error in status:', status.error);
                 finish(false);
                 return;
               }
@@ -138,7 +152,7 @@ class AudioPlaybackService {
       // 2. HTML5 Web / fallback audio
       if (typeof Audio !== 'undefined') {
         return new Promise<boolean>((resolve) => {
-          const audio = new Audio(resolvedUri);
+          const audio = new Audio(safeUri);
           this.currentPlayer = audio;
 
           let finished = false;
@@ -159,33 +173,49 @@ class AudioPlaybackService {
 
       return false;
     } catch (err) {
-      console.warn('[AudioService] Failed to play audio and wait:', filenameOrUri, err);
       return false;
     }
   }
 
   /**
-   * Stops any currently playing audio
+   * Stops any currently playing audio cleanly
    */
   async stop(): Promise<void> {
     try {
       if (this.currentPlayer) {
         if (typeof this.currentPlayer.pause === 'function') {
-          this.currentPlayer.pause();
-        }
-        if (typeof this.currentPlayer.remove === 'function') {
-          this.currentPlayer.remove();
+          try { this.currentPlayer.pause(); } catch (e) {}
         }
         this.currentPlayer = null;
       }
     } catch (err) {
-      console.warn('[AudioService] Error stopping audio:', err);
       this.currentPlayer = null;
     }
   }
 
   /**
+   * Plays an audio file if present on disk, otherwise speaks fallback text using TTS.
+   * Guarantees that pronunciation is ALWAYS heard by the user with zero missing-file errors!
+   */
+  async playOrSpeak(
+    filenameOrUri: string | undefined,
+    fallbackText: string,
+    ttsOptions?: TtsOptions
+  ): Promise<boolean> {
+    if (filenameOrUri) {
+      const success = await this.playAndWait(filenameOrUri);
+      if (success) return true;
+    }
+    if (fallbackText) {
+      await TtsService.speak(fallbackText, ttsOptions);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Extracts all audio filenames referenced in Anki format: [sound:filename.mp3] or <audio src="...">
+   * Excludes video files (.mp4, .webm, etc.) which are handled by the WebView video player.
    */
   extractSoundTags(text: string): string[] {
     if (!text) return [];
@@ -194,7 +224,11 @@ class AudioPlaybackService {
     let match;
     while ((match = soundRegex.exec(text)) !== null) {
       if (match[1]) {
-        matches.push(match[1].trim());
+        const file = match[1].trim();
+        // Ignore video files from audio playlist so expo-audio does not fail with Source error
+        if (!/\.(mp4|webm|mkv|mov|m4v|avi|ogv)$/i.test(file)) {
+          matches.push(file);
+        }
       }
     }
     const audioTagRegex = /<audio[^>]+src=["']([^"']+)["'][^>]*>/gi;

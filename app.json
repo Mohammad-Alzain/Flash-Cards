@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Flashcards",
-    "slug": "flashcards-app",
+    "slug": "flash-cards",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",

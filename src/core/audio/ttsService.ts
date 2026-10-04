@@ -35,11 +35,28 @@ export function cleanTextForTts(html: string): string {
 }
 
 /**
- * Auto-detects primary language based on character script.
+ * Auto-detects primary language based on character script and common word patterns.
  */
-export function detectLanguage(text: string): 'ar-SA' | 'en-US' {
-  const arabicRegex = /[\u0600-\u06FF]/;
-  return arabicRegex.test(text) ? 'ar-SA' : 'en-US';
+export function detectLanguage(text: string): string {
+  if (!text) return 'en-US';
+  if (/[\u0600-\u06FF]/.test(text)) return 'ar-SA';
+  if (/[а-яА-ЯёЁ]/.test(text)) return 'ru-RU';
+  if (/[\u3040-\u30ff]/.test(text)) return 'ja-JP';
+  if (/[\uac00-\ud7af]/.test(text)) return 'ko-KR';
+  if (/[\u4e00-\u9fa5]/.test(text)) return 'zh-CN';
+  // German detection (umlauts + common articles/words)
+  if (/[äöüßÄÖÜ]/.test(text) || /\b(der|die|das|und|ein|eine|nicht|ist|sie|ich|es)\b/i.test(text)) {
+    return 'de-DE';
+  }
+  // French detection
+  if (/[éèêëàâùûôîïç]/i.test(text) || /\b(le|la|les|un|une|des|est|sont|et)\b/i.test(text)) {
+    return 'fr-FR';
+  }
+  // Spanish detection
+  if (/[áéíóúñ¿¡]/i.test(text) || /\b(el|la|los|las|una|pero|por|para)\b/i.test(text)) {
+    return 'es-ES';
+  }
+  return 'en-US';
 }
 
 export class TtsService {

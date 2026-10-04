@@ -14,12 +14,14 @@ import { useTheme } from '../../theme';
 import { isRTL } from '../../i18n';
 import { Header, Card, Button, Badge, TextField } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
-import * as Sharing from 'expo-sharing';
+import { ExportModal } from '../../components/export/ExportModal';
 import { exportToApkg } from '../../core/exporters/apkgExporter';
 import { deckRepository, DeckWithCounts } from '../../core/db/repositories/deckRepository';
 import { cardRepository } from '../../core/db/repositories/cardRepository';
 import { queueBuilder } from '../../core/scheduler/queueBuilder';
 import { Deck } from '../../core/types/models';
+import { ErrorModal } from '../../components/common/ErrorModal';
+import { reportError, AppErrorDetails } from '../../core/utils/errorHandler';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,11 +29,12 @@ export default function DeckDetailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const rtl = isRTL();
-  const [exporting, setExporting] = useState(false);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
 
   const [deck, setDeck] = useState<DeckWithCounts | null>(null);
   const [studiedCount, setStudiedCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [activeError, setActiveError] = useState<AppErrorDetails | null>(null);
 
   // Edit Deck Modal
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -101,33 +104,13 @@ export default function DeckDetailScreen() {
               await deckRepository.delete(deck.id);
               router.back();
             } catch (err: any) {
-              CustomAlert.alert(t('common.error'), err.message);
+              const errDetails = reportError('Delete Deck', err, t('common.error'));
+              setActiveError(errDetails);
             }
           },
         },
       ]
     );
-  };
-
-  const handleQuickExport = async () => {
-    if (!deck) return;
-    try {
-      setExporting(true);
-      const res = await exportToApkg({ deckId: deck.id });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(res.filePath, {
-          mimeType: 'application/octet-stream',
-          dialogTitle: `Export ${deck.name}`,
-          UTI: 'public.data',
-        });
-      } else {
-        CustomAlert.alert(t('common.done'), `Saved to: ${res.fileName}`);
-      }
-    } catch (e: any) {
-      CustomAlert.alert(t('common.error'), e.message);
-    } finally {
-      setExporting(false);
-    }
   };
 
   if (!deck) return null;
@@ -293,7 +276,7 @@ export default function DeckDetailScreen() {
             icon={<Ionicons name="add-circle-outline" size={18} color={colors.primary} />}
             variant="ghost"
             size="md"
-            onPress={() => router.push('/modal/add-note')}
+            onPress={() => router.push({ pathname: '/modal/add-note', params: { deckId: id } })}
           />
           <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
           <Button
@@ -313,12 +296,11 @@ export default function DeckDetailScreen() {
           />
           <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
           <Button
-            title="Export to Anki (.apkg)"
+            title={rtl ? 'تصدير الرزمة (Anki / CSV / Excel)' : 'Export Deck (Anki / CSV / Excel)'}
             icon={<Ionicons name="share-outline" size={18} color={colors.primary} />}
             variant="ghost"
             size="md"
-            loading={exporting}
-            onPress={handleQuickExport}
+            onPress={() => setExportModalVisible(true)}
           />
         </Card>
 
@@ -403,6 +385,21 @@ export default function DeckDetailScreen() {
           </Card>
         </View>
       </Modal>
+
+      {/* Export Options & Progress Modal */}
+      <ExportModal
+        visible={exportModalVisible}
+        deckId={deck.id}
+        deckName={deck.name}
+        onClose={() => setExportModalVisible(false)}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={activeError !== null}
+        error={activeError}
+        onClose={() => setActiveError(null)}
+      />
     </SafeAreaView>
   );
 }

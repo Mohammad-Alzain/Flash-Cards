@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet, Platform } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '../theme';
@@ -13,12 +13,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppLockManager } from '../core/security/appLock';
 import { LockOverlay } from '../components/security/LockOverlay';
 import { CustomDialogContainer } from '../components/common/CustomDialog';
+import { settingsRepository } from '../core/db/repositories/settingsRepository';
+import { notificationService } from '../core/notifications/notificationService';
 
 function RootApp() {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const [dbReady, setDbReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const lastQuickCardTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -30,6 +34,7 @@ function RootApp() {
         setDbReady(true);
         const locked = await AppLockManager.evaluateAppResume();
         if (locked) setIsLocked(true);
+        notificationService.registerCategories().catch(() => {});
       })
       .catch((err) => {
         console.error('Database initialization error:', err);
@@ -44,12 +49,39 @@ function RootApp() {
           NavigationBar.setVisibilityAsync('hidden').catch(() => {});
         }
         const locked = await AppLockManager.evaluateAppResume();
-        if (locked) setIsLocked(true);
+        if (locked) {
+          setIsLocked(true);
+        } else {
+          // Check if "Quick Card on App Open / Phone Unlock" is enabled
+          try {
+            const quickCardEnabled = await settingsRepository.get('quick_card_on_open', '0');
+            const now = Date.now();
+            // Cooldown of 5 minutes between prompts so it doesn't interrupt frequent app switching
+            if (quickCardEnabled === '1' && now - lastQuickCardTimeRef.current > 5 * 60 * 1000) {
+              lastQuickCardTimeRef.current = now;
+              setTimeout(() => {
+                router.push('/modal/quick-card');
+              }, 500);
+            }
+          } catch (e) {}
+        }
       }
     });
 
+    // Listen to notification responses (interactive action buttons)
+    let notifSub: any = null;
+    try {
+      const Notifications = require('expo-notifications');
+      if (Notifications && typeof Notifications.addNotificationResponseReceivedListener === 'function') {
+        notifSub = Notifications.addNotificationResponseReceivedListener((response: any) => {
+          notificationService.handleNotificationResponse(response);
+        });
+      }
+    } catch (e) {}
+
     return () => {
       subscription.remove();
+      notifSub?.remove?.();
     };
   }, []);
 
@@ -114,6 +146,13 @@ function RootApp() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="modal/add-note"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="modal/quick-card"
           options={{
             presentation: 'modal',
             headerShown: false,

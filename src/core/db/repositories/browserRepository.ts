@@ -148,9 +148,13 @@ export const browserRepository = {
    * Bulk delete cards
    */
   async bulkDeleteCards(cardIds: string[]): Promise<void> {
+    if (!cardIds || cardIds.length === 0) return;
     const db = await getDatabase();
     const placeholders = cardIds.map(() => '?').join(',');
-    await db.runAsync(`DELETE FROM cards WHERE id IN (${placeholders});`, ...cardIds);
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM cards WHERE id IN (${placeholders});`, ...cardIds);
+      await db.runAsync(`DELETE FROM notes WHERE id NOT IN (SELECT DISTINCT note_id FROM cards);`);
+    });
   },
 
   /**

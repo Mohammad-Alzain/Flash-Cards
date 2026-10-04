@@ -1,4 +1,4 @@
-import { getDatabase } from '../connection';
+import { withDatabaseRead } from '../connection';
 import { Card, CardState } from '../../types/models';
 
 export interface CardWithNoteDetails extends Card {
@@ -9,7 +9,6 @@ export interface CardWithNoteDetails extends Card {
 
 export const cardRepository = {
   async getDueCards(limit = 50, deckId?: string): Promise<CardWithNoteDetails[]> {
-    const db = await getDatabase();
     const now = Date.now();
 
     let sql = `
@@ -29,12 +28,12 @@ export const cardRepository = {
     sql += ' ORDER BY c.due ASC LIMIT ?;';
     params.push(limit);
 
-    return await db.getAllAsync<CardWithNoteDetails>(sql, ...params);
+    return await withDatabaseRead(async (db) => {
+      return await db.getAllAsync<CardWithNoteDetails>(sql, ...params);
+    });
   },
 
   async getNewCards(limit = 20, deckId?: string): Promise<CardWithNoteDetails[]> {
-    const db = await getDatabase();
-
     let sql = `
       SELECT c.*, n.fields_json, n.tags, n.note_type_id
       FROM cards c
@@ -51,11 +50,12 @@ export const cardRepository = {
     sql += ' ORDER BY c.created_at ASC LIMIT ?;';
     params.push(limit);
 
-    return await db.getAllAsync<CardWithNoteDetails>(sql, ...params);
+    return await withDatabaseRead(async (db) => {
+      return await db.getAllAsync<CardWithNoteDetails>(sql, ...params);
+    });
   },
 
   async getGlobalCounts(): Promise<{ due: number; newCards: number; learn: number; total: number }> {
-    const db = await getDatabase();
     const now = Date.now();
 
     const sql = `
@@ -67,18 +67,28 @@ export const cardRepository = {
       FROM cards;
     `;
 
-    const row = await db.getFirstAsync<any>(sql, now);
-    return {
-      total: Number(row?.total || 0),
-      newCards: Number(row?.new_count || 0),
-      learn: Number(row?.learn_count || 0),
-      due: Number(row?.due_count || 0),
-    };
+    return await withDatabaseRead(async (db) => {
+      const row = await db.getFirstAsync<any>(sql, now);
+      return {
+        total: Number(row?.total || 0),
+        newCards: Number(row?.new_count || 0),
+        learn: Number(row?.learn_count || 0),
+        due: Number(row?.due_count || 0),
+      };
+    });
   },
 
   async getTotalCount(): Promise<number> {
-    const db = await getDatabase();
-    const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM cards;');
-    return Number(row?.count || 0);
+    return await withDatabaseRead(async (db) => {
+      const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM cards;');
+      return Number(row?.count || 0);
+    });
+  },
+
+  async getById(id: string): Promise<Card | null> {
+    if (!id || typeof id !== 'string') return null;
+    return await withDatabaseRead(async (db) => {
+      return await db.getFirstAsync<Card>('SELECT * FROM cards WHERE id = ?;', [id]);
+    });
   },
 };

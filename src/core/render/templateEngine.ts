@@ -148,24 +148,60 @@ export function getFieldValue(fields: Record<string, string>, fieldName: string)
 }
 
 /**
- * Resolves media paths: <img src="file.jpg"> -> <img src="baseUri/file.jpg">
+ * Resolves media paths: <img>, <video>, <audio>, <source> with relative paths -> full URI
  * and [sound:file.mp3] -> discrete audio replay button matching Anki
+ * and [sound:video.mp4] -> HTML5 <video> player matching Anki
  */
 export function resolveMediaTags(html: string, mediaBaseUri = ''): string {
   let result = html;
+  const fixedBase = mediaBaseUri ? (mediaBaseUri.endsWith('/') ? mediaBaseUri : mediaBaseUri + '/') : '';
 
-  // Resolve <img> tags with relative paths
-  result = result.replace(/<img([^>]+)src=["']([^"']+)["']([^>]*)>/gi, (match, p1, src, p2) => {
-    if (!src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:') && !src.startsWith('file://')) {
-      const fixedBase = mediaBaseUri ? (mediaBaseUri.endsWith('/') ? mediaBaseUri : mediaBaseUri + '/') : '';
-      return `<img${p1}src="${fixedBase}${src}"${p2}>`;
+  // 1. Resolve relative src in <img>, <video>, <audio>, <source>, <track> tags
+  result = result.replace(
+    /<(img|video|audio|source|track)(\s[^>]*?)src=(?:["']([^"']+)["']|([^\s>]+))([^>]*)>/gi,
+    (match, tag, before, qSrc, unqSrc, after) => {
+      const rawSrc = (qSrc || unqSrc || '').trim();
+      if (!rawSrc) return match;
+      if (
+        rawSrc.startsWith('http://') ||
+        rawSrc.startsWith('https://') ||
+        rawSrc.startsWith('data:') ||
+        rawSrc.startsWith('file://')
+      ) {
+        return match;
+      }
+      const cleanSrc = rawSrc.replace(/^\.\//, '');
+      const fullSrc = fixedBase ? `${fixedBase}${cleanSrc}` : cleanSrc;
+      let safeSrc = fullSrc;
+      if (safeSrc.startsWith('file://')) {
+        try {
+          safeSrc = encodeURI(decodeURI(safeSrc)).replace(/#/g, '%23');
+        } catch {}
+      }
+      return `<${tag}${before}src="${safeSrc}"${after}>`;
     }
-    return match;
-  });
+  );
 
-  // Resolve [sound:filename.mp3] tags into discreet interactive buttons matching Anki
+  // 2. Resolve [sound:filename] tags:
+  // - If it's a video file (.mp4, .webm, etc.), render HTML5 video element
+  // - If it's audio (.mp3, etc.), render discrete interactive button matching Anki
   result = result.replace(/\[sound:([^\]]+)\]/g, (match, filename) => {
-    return `<button class="sound-button replay-button" type="button" aria-label="Audio" onclick="event.stopPropagation(); event.preventDefault(); if(window.ReactNativeWebView){ window.ReactNativeWebView.postMessage(JSON.stringify({type:'sound', file:'${filename}'})); }"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:middle;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg></button>`;
+    const trimmed = filename.trim();
+    const isVideo = /\.(mp4|webm|mkv|mov|m4v|avi|ogv)$/i.test(trimmed);
+    if (isVideo) {
+      const rawVideoSrc = trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('file://')
+        ? trimmed
+        : `${fixedBase}${trimmed}`;
+      let videoSrc = rawVideoSrc;
+      if (videoSrc.startsWith('file://')) {
+        try {
+          videoSrc = encodeURI(decodeURI(videoSrc)).replace(/#/g, '%23');
+        } catch {}
+      }
+      return `<div style="text-align:center; margin:8px 0;"><video controls playsinline preload="metadata" style="max-width:100%; max-height:260px; border-radius:8px;"><source src="${videoSrc}">Your device does not support video playback.</video></div>`;
+    }
+
+    return `<button class="sound-button replay-button" type="button" aria-label="Audio" onclick="event.stopPropagation(); event.preventDefault(); if(window.ReactNativeWebView){ window.ReactNativeWebView.postMessage(JSON.stringify({type:'sound', file:'${trimmed}'})); }"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:middle;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg></button>`;
   });
 
   return result;

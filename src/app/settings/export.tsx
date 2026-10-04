@@ -19,7 +19,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { getDatabase } from '../../core/db/connection';
 import { ExportManager } from '../../core/exporters/exportManager';
-import { ExportFormat } from '../../core/exporters/types';
+import { ExportFormat, ExportProgress } from '../../core/exporters/types';
+import { ProgressBar } from '../../components/ui/ProgressBar';
 
 interface DeckOption {
   id: string;
@@ -38,6 +39,7 @@ export default function ExportScreen() {
   const [includeScheduling, setIncludeScheduling] = useState(true);
   const [includeMedia, setIncludeMedia] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [progress, setProgress] = useState<ExportProgress | null>(null);
 
   useEffect(() => {
     async function loadDecks() {
@@ -55,10 +57,19 @@ export default function ExportScreen() {
   const handleExport = async () => {
     try {
       setExporting(true);
+      setProgress({
+        stage: 'inspect',
+        percent: 5,
+        current: 0,
+        total: 100,
+        message: 'بدء تجهيز ملف التصدير...',
+      });
+
       const res = await ExportManager.export(format, {
         deckId: selectedDeckId,
         includeScheduling,
         includeMedia,
+        onProgress: (p) => setProgress(p),
       });
 
       // Open native sharing sheet
@@ -67,6 +78,7 @@ export default function ExportScreen() {
       CustomAlert.alert(t('common.error'), e.message || 'Export failed');
     } finally {
       setExporting(false);
+      setProgress(null);
     }
   };
 
@@ -271,11 +283,21 @@ export default function ExportScreen() {
         />
       </ScrollView>
 
-      {/* Exporting Loading Overlay */}
+      {/* Exporting Loading Overlay with Live Progress */}
       {exporting && (
         <View style={styles.overlay}>
-          <ActivityIndicator size="large" color="#ffffff" />
-          <Text style={styles.overlayText}>{t('export.preparingPackage')}</Text>
+          <View style={styles.progressCard}>
+            <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginBottom: 12 }} />
+            <Text style={[styles.overlayText, { color: theme.colors.text }]}>
+              {progress?.message || t('export.preparingPackage')}
+            </Text>
+            <View style={{ width: '100%', marginVertical: 12 }}>
+              <ProgressBar progress={(progress?.percent || 0) / 100} height={8} color={theme.colors.primary} />
+            </View>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: theme.colors.primary }}>
+              {progress?.percent || 0}%
+            </Text>
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -363,14 +385,27 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    padding: 24,
+  },
+  progressCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
   overlayText: {
-    color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
+    textAlign: 'center',
   },
 });

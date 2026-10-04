@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../../theme';
@@ -27,12 +27,77 @@ export const CardRenderer: React.FC<CardRendererProps> = ({
 }) => {
   const { isDark, colors } = useTheme();
   const webViewRef = useRef<WebView>(null);
+  const [resolvedHtml, setResolvedHtml] = useState<string>(htmlContent);
 
   const nightModeActive = isNightMode !== undefined ? isNightMode : isDark;
   const mediaBaseUri = mediaManager.getMediaDirectory();
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const processHtml = async () => {
+      console.log('[MEDIA] Raw field HTML:', htmlContent);
+
+      const imgRegex = /<img\b([^>]*?)src=(?:["']([^"']+)["']|([^\s>]+))([^>]*)>/gi;
+      let match;
+      const imgTags: { fullTag: string; before: string; src: string; after: string }[] = [];
+
+      while ((match = imgRegex.exec(htmlContent)) !== null) {
+        const before = match[1] || '';
+        const src = (match[2] || match[3] || '').trim();
+        const after = match[4] || '';
+        if (src) {
+          imgTags.push({ fullTag: match[0], before, src, after });
+        }
+      }
+
+      if (imgTags.length === 0) {
+        if (!isCancelled) setResolvedHtml(htmlContent);
+        return;
+      }
+
+      let updated = htmlContent;
+
+      for (const { fullTag, before, src, after } of imgTags) {
+        console.log(`[MEDIA] Extracted image filename: "${src}"`);
+        if (
+          src.startsWith('http://') ||
+          src.startsWith('https://') ||
+          src.startsWith('data:')
+        ) {
+          console.log(`[MEDIA] Remote image URI: "${src}", exists: true`);
+          continue;
+        }
+
+        const resolved = await mediaManager.resolveMediaUri(src);
+        console.log(`[MEDIA] Resolved image URI: "${resolved}", exists: ${resolved !== null}`);
+
+        const cleanName = src.replace(/^\[sound:/i, '').replace(/\]$/, '').replace(/^['"]|['"]$/g, '').trim();
+
+        if (resolved) {
+          const wrapper = `<span class="anki-img-container" style="display:inline-block; max-width:100%;"><img${before}src="${resolved}"${after} onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';" /><span class="missing-media-placeholder" style="display:none; align-items:center; justify-content:center; gap:6px; padding:6px 12px; margin:6px auto; background:rgba(239,68,68,0.08); border:1px dashed rgba(239,68,68,0.4); border-radius:6px; color:#ef4444; font-size:12px; font-family:sans-serif;">🖼️ [Image error: ${cleanName}]</span></span>`;
+          updated = updated.replace(fullTag, wrapper);
+        } else {
+          // File missing from storage - show placeholder
+          const placeholder = `<span class="missing-media-placeholder" style="display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:6px 12px; margin:6px auto; background:rgba(239,68,68,0.08); border:1px dashed rgba(239,68,68,0.4); border-radius:6px; color:#ef4444; font-size:12px; font-family:sans-serif;">🖼️ [Image missing: ${cleanName}]</span>`;
+          updated = updated.replace(fullTag, placeholder);
+        }
+      }
+
+      if (!isCancelled) {
+        setResolvedHtml(updated);
+      }
+    };
+
+    processHtml();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [htmlContent]);
+
   const fullHtml = buildHtmlDocument(
-    htmlContent,
+    resolvedHtml,
     css,
     templateOrd,
     nightModeActive,
@@ -43,7 +108,7 @@ export const CardRenderer: React.FC<CardRendererProps> = ({
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'sound') {
-        // Prevent duplicate playback: call onAudioPlay if provided, otherwise audioService.play
+        console.log(`[MEDIA] Sound button tapped in WebView: "${data.file}"`);
         if (onAudioPlay) {
           onAudioPlay(data.file);
         } else if (data.file) {
@@ -75,6 +140,7 @@ export const CardRenderer: React.FC<CardRendererProps> = ({
         javaScriptEnabled={true}
         domStorageEnabled={true}
         allowFileAccess={true}
+        allowFileAccessFromFileURLs={true}
         allowUniversalAccessFromFileURLs={true}
         allowingReadAccessToURL={mediaBaseUri}
         mediaPlaybackRequiresUserAction={false}

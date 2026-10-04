@@ -1,4 +1,4 @@
-import { getDatabase } from '../connection';
+import { getDatabase, withDatabaseLock, withDatabaseRead } from '../connection';
 import { Deck, CardState } from '../../types/models';
 
 export interface DeckWithCounts extends Deck {
@@ -48,7 +48,9 @@ export const deckRepository = {
       ORDER BY d.name ASC;
     `;
 
-    const rows = await db.getAllAsync<any>(sql, now, now);
+    const rows = await withDatabaseRead(async (db) => {
+      return await db.getAllAsync<any>(sql, now, now);
+    });
     const rawDecks: DeckWithCounts[] = rows.map((r) => ({
       ...r,
       card_count: Number(r.card_count || 0),
@@ -173,97 +175,139 @@ export const deckRepository = {
    * Returns deckId and all its descendant subdeck IDs
    */
   async getDeckAndDescendantIds(deckId: string): Promise<string[]> {
-    const db = await getDatabase();
-    const targetDeck = await db.getFirstAsync<{ id: string; name: string }>(
-      'SELECT id, name FROM decks WHERE id = ?;',
-      deckId
-    );
-    if (!targetDeck) return [deckId];
+    return await withDatabaseRead(async (db) => {
+      const targetDeck = await db.getFirstAsync<{ id: string; name: string }>(
+        'SELECT id, name FROM decks WHERE id = ?;',
+        deckId
+      );
+      if (!targetDeck) return [deckId];
 
-    const rows = await db.getAllAsync<{ id: string }>(
-      `SELECT id FROM decks WHERE id = ? OR parent_id = ? OR name LIKE ?;`,
-      deckId,
-      deckId,
-      `${targetDeck.name}::%`
-    );
-    return Array.from(new Set([deckId, ...rows.map((r) => r.id)]));
+      const rows = await db.getAllAsync<{ id: string }>(
+        `SELECT id FROM decks WHERE id = ? OR parent_id = ? OR name LIKE ?;`,
+        deckId,
+        deckId,
+        `${targetDeck.name}::%`
+      );
+      return Array.from(new Set([deckId, ...rows.map((r) => r.id)]));
+    });
   },
 
   async getById(id: string): Promise<Deck | null> {
-    const db = await getDatabase();
-    const row = await db.getFirstAsync<Deck>('SELECT * FROM decks WHERE id = ?;', id);
-    return row || null;
+    return await withDatabaseRead(async (db) => {
+      const row = await db.getFirstAsync<Deck>('SELECT * FROM decks WHERE id = ?;', id);
+      return row || null;
+    });
   },
 
   async create(name: string, description?: string, parentId?: string | null): Promise<Deck> {
-    const db = await getDatabase();
-    const id = `deck_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const now = Date.now();
+    return withDatabaseLock(async (db) => {
+      const id = `deck_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const now = Date.now();
 
-    await db.runAsync(
-      `INSERT INTO decks (id, parent_id, name, description, created_at, updated_at, new_per_day, reviews_per_day)
-       VALUES (?, ?, ?, ?, ?, ?, 20, 100);`,
-      id,
-      parentId || null,
-      name,
-      description || null,
-      now,
-      now
-    );
+      await db.runAsync(
+        `INSERT INTO decks (id, parent_id, name, description, created_at, updated_at, new_per_day, reviews_per_day)
+         VALUES (?, ?, ?, ?, ?, ?, 20, 100);`,
+        id,
+        parentId || null,
+        name,
+        description || null,
+        now,
+        now
+      );
 
-    return {
-      id,
-      parent_id: parentId || null,
-      name,
-      description: description || null,
-      created_at: now,
-      updated_at: now,
-      new_per_day: 20,
-      reviews_per_day: 100,
-      settings_json: null,
-      archived: 0,
-    };
+      return {
+        id,
+        parent_id: parentId || null,
+        name,
+        description: description || null,
+        created_at: now,
+        updated_at: now,
+        new_per_day: 20,
+        reviews_per_day: 100,
+        settings_json: null,
+        archived: 0,
+      };
+    });
   },
 
   async update(id: string, updates: Partial<Deck>): Promise<void> {
-    const db = await getDatabase();
-    const sets: string[] = [];
-    const values: any[] = [];
+    return withDatabaseLock(async (db) => {
+      const sets: string[] = [];
+      const values: any[] = [];
 
-    if (updates.name !== undefined) {
-      sets.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.description !== undefined) {
-      sets.push('description = ?');
-      values.push(updates.description);
-    }
-    if (updates.new_per_day !== undefined) {
-      sets.push('new_per_day = ?');
-      values.push(updates.new_per_day);
-    }
-    if (updates.reviews_per_day !== undefined) {
-      sets.push('reviews_per_day = ?');
-      values.push(updates.reviews_per_day);
-    }
+      if (updates.name !== undefined) {
+        sets.push('name = ?');
+        values.push(updates.name);
+      }
+      if (updates.description !== undefined) {
+        sets.push('description = ?');
+        values.push(updates.description);
+      }
+      if (updates.new_per_day !== undefined) {
+        sets.push('new_per_day = ?');
+        values.push(updates.new_per_day);
+      }
+      if (updates.reviews_per_day !== undefined) {
+        sets.push('reviews_per_day = ?');
+        values.push(updates.reviews_per_day);
+      }
 
-    if (sets.length === 0) return;
+      if (sets.length === 0) return;
 
-    sets.push('updated_at = ?');
-    values.push(Date.now());
-    values.push(id);
+      sets.push('updated_at = ?');
+      values.push(Date.now());
+      values.push(id);
 
-    await db.runAsync(
-      `UPDATE decks SET ${sets.join(', ')} WHERE id = ?;`,
-      ...values
-    );
+      await db.runAsync(
+        `UPDATE decks SET ${sets.join(', ')} WHERE id = ?;`,
+        ...values
+      );
+    });
   },
 
   async delete(id: string): Promise<void> {
-    const db = await getDatabase();
-    // Delete deck and its child sub-decks
-    const allIds = await this.getDeckAndDescendantIds(id);
-    const placeholders = allIds.map(() => '?').join(',');
-    await db.runAsync(`DELETE FROM decks WHERE id IN (${placeholders});`, ...allIds);
+    return withDatabaseLock(async (db) => {
+      const targetDeck = await db.getFirstAsync<{ id: string; name: string }>(
+        'SELECT id, name FROM decks WHERE id = ?;',
+        id
+      );
+      if (!targetDeck) return;
+
+      const rows = await db.getAllAsync<{ id: string }>(
+        `SELECT id FROM decks WHERE id = ? OR parent_id = ? OR name LIKE ?;`,
+        id,
+        id,
+        `${targetDeck.name}::%`
+      );
+      const allIds = Array.from(new Set([id, ...rows.map((r) => r.id)]));
+      if (allIds.length === 0) return;
+
+      await db.withTransactionAsync(async () => {
+        const placeholders = allIds.map(() => '?').join(',');
+
+        // 1. Delete review logs associated with cards in these decks
+        await db.runAsync(
+          `DELETE FROM review_logs WHERE deck_id IN (${placeholders}) OR card_id IN (
+             SELECT id FROM cards WHERE deck_id IN (${placeholders})
+           );`,
+          ...allIds,
+          ...allIds
+        );
+
+        // 2. Delete study sessions, daily stats, and schedules for these decks
+        await db.runAsync(`DELETE FROM study_sessions WHERE deck_id IN (${placeholders});`, ...allIds);
+        await db.runAsync(`DELETE FROM daily_stats WHERE deck_id IN (${placeholders});`, ...allIds);
+        await db.runAsync(`DELETE FROM schedules WHERE deck_id IN (${placeholders});`, ...allIds);
+
+        // 3. Delete cards belonging to these decks
+        await db.runAsync(`DELETE FROM cards WHERE deck_id IN (${placeholders});`, ...allIds);
+
+        // 4. Delete orphaned notes (notes that no longer have any cards)
+        await db.runAsync(`DELETE FROM notes WHERE id NOT IN (SELECT DISTINCT note_id FROM cards);`);
+
+        // 5. Delete the decks themselves
+        await db.runAsync(`DELETE FROM decks WHERE id IN (${placeholders});`, ...allIds);
+      });
+    });
   },
 };

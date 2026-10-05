@@ -10,6 +10,9 @@ try {
 
 class AudioPlaybackService {
   private currentPlayer: any = null;
+  private currentSubscription: any = null;
+  private currentFinishResolver: ((success: boolean) => void) | null = null;
+  private activeSessionId = 0;
   private isAudioModeConfigured = false;
 
   private async configureAudioMode(): Promise<void> {
@@ -22,10 +25,46 @@ class AudioPlaybackService {
           interruptionMode: 'doNotMix',
         });
       }
+      if (ExpoAudio && typeof ExpoAudio.clearAllPreloadedSources === 'function') {
+        try {
+          await ExpoAudio.clearAllPreloadedSources();
+        } catch {}
+      }
       this.isAudioModeConfigured = true;
     } catch (e) {
       console.warn('[AudioService] Could not set audio mode:', e);
     }
+  }
+
+  /**
+   * Completely destroys an AudioPlayer instance and frees native Android/iOS hardware resources.
+   * Prevents ExoPlayer / MediaCodec / AudioTrack exhaustion on Android.
+   */
+  private destroyPlayer(player: any, subscription?: any): void {
+    if (subscription) {
+      try {
+        subscription.remove?.();
+      } catch (e) {}
+    }
+    if (!player) return;
+
+    try {
+      if (typeof player.pause === 'function') {
+        player.pause();
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof player.remove === 'function') {
+        player.remove();
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof player.release === 'function') {
+        player.release();
+      }
+    } catch (e) {}
   }
 
   /**
@@ -44,19 +83,38 @@ class AudioPlaybackService {
       if (!existingUri) return false;
 
       const safeUri = encodeURI(decodeURI(existingUri)).replace(/#/g, '%23');
+      const sessionId = ++this.activeSessionId;
 
       // 1. Try modern expo-audio (SDK 57)
       if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
-        const player = ExpoAudio.createAudioPlayer({ uri: safeUri });
+        let player: any = null;
+        try {
+          player = ExpoAudio.createAudioPlayer({ uri: safeUri }, { updateInterval: 100 });
+        } catch (createErr) {
+          console.warn('[AudioService] createAudioPlayer failed:', createErr);
+          return false;
+        }
+
         this.currentPlayer = player;
+
         if (typeof player.addListener === 'function') {
           const sub = player.addListener('playbackStatusUpdate', (status: any) => {
+            if (this.activeSessionId !== sessionId) {
+              this.destroyPlayer(player, sub);
+              return;
+            }
+
             if (status?.didJustFinish || status?.error) {
-              try { sub?.remove?.(); } catch (e) {}
-              if (this.currentPlayer === player) this.currentPlayer = null;
+              if (this.currentPlayer === player) {
+                this.currentPlayer = null;
+                this.currentSubscription = null;
+              }
+              this.destroyPlayer(player, sub);
             }
           });
+          this.currentSubscription = sub;
         }
+
         player.play();
         return true;
       }
@@ -65,12 +123,19 @@ class AudioPlaybackService {
       if (typeof Audio !== 'undefined') {
         const audio = new Audio(safeUri);
         this.currentPlayer = audio;
+        audio.onended = () => {
+          if (this.currentPlayer === audio) this.currentPlayer = null;
+        };
+        audio.onerror = () => {
+          if (this.currentPlayer === audio) this.currentPlayer = null;
+        };
         audio.play().catch(() => {});
         return true;
       }
 
       return false;
     } catch (err) {
+      console.warn('[AudioService] play error:', err);
       return false;
     }
   }
@@ -91,10 +156,18 @@ class AudioPlaybackService {
       if (!existingUri) return false;
 
       const safeUri = encodeURI(decodeURI(existingUri)).replace(/#/g, '%23');
+      const sessionId = ++this.activeSessionId;
 
       // 1. Try modern expo-audio (SDK 57)
       if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
-        const player = ExpoAudio.createAudioPlayer({ uri: safeUri });
+        let player: any = null;
+        try {
+          player = ExpoAudio.createAudioPlayer({ uri: safeUri }, { updateInterval: 100 });
+        } catch (createErr) {
+          console.warn('[AudioService] createAudioPlayer failed in playAndWait:', createErr);
+          return false;
+        }
+
         this.currentPlayer = player;
 
         return new Promise<boolean>((resolve) => {
@@ -105,14 +178,21 @@ class AudioPlaybackService {
             if (finished) return;
             finished = true;
             clearTimeout(timeoutId);
-            try {
-              subscription?.remove?.();
-            } catch (e) {}
+
+            if (this.currentFinishResolver === finish) {
+              this.currentFinishResolver = null;
+            }
             if (this.currentPlayer === player) {
               this.currentPlayer = null;
+              this.currentSubscription = null;
             }
+
+            // Immediately destroy player and free native hardware decoders
+            this.destroyPlayer(player, subscription);
             resolve(result);
           };
+
+          this.currentFinishResolver = finish;
 
           const timeoutId = setTimeout(() => {
             finish(true);
@@ -121,29 +201,39 @@ class AudioPlaybackService {
           let subscription: any = null;
           if (typeof player.addListener === 'function') {
             subscription = player.addListener('playbackStatusUpdate', (status: any) => {
+              if (this.activeSessionId !== sessionId) {
+                finish(false);
+                return;
+              }
+
               if (status?.playing) {
                 hasStartedPlaying = true;
               }
+
               // Normal finish event from expo-audio
               if (status?.didJustFinish) {
                 finish(true);
                 return;
               }
-              // Duration-based completion fallback (when track reaches end)
+
+              // Duration-based completion fallback (when track reaches near end)
               if (
                 hasStartedPlaying &&
                 status?.duration > 0 &&
-                status?.currentTime >= status?.duration - 0.15
+                status?.currentTime >= status?.duration - 0.1
               ) {
                 finish(true);
                 return;
               }
-              // Handle error if any quietly without yellow/red warning
+
+              // Handle error if any
               if (status?.error) {
+                console.warn('[AudioService] Playback status error:', status.error);
                 finish(false);
                 return;
               }
             });
+            this.currentSubscription = subscription;
           }
 
           player.play();
@@ -161,6 +251,10 @@ class AudioPlaybackService {
             if (finished) return;
             finished = true;
             clearTimeout(timeoutId);
+            if (this.currentPlayer === audio) {
+              this.currentPlayer = null;
+            }
+            try { audio.pause(); } catch (e) {}
             resolve(result);
           };
 
@@ -174,23 +268,36 @@ class AudioPlaybackService {
 
       return false;
     } catch (err) {
+      console.warn('[AudioService] playAndWait error:', err);
       return false;
     }
   }
 
   /**
-   * Stops any currently playing audio cleanly
+   * Stops any currently playing audio cleanly and completely frees hardware resources
    */
   async stop(): Promise<void> {
-    try {
-      if (this.currentPlayer) {
-        if (typeof this.currentPlayer.pause === 'function') {
-          try { this.currentPlayer.pause(); } catch (e) {}
-        }
-        this.currentPlayer = null;
-      }
-    } catch (err) {
+    this.activeSessionId++;
+
+    if (this.currentFinishResolver) {
+      const resolver = this.currentFinishResolver;
+      this.currentFinishResolver = null;
+      try {
+        resolver(false);
+      } catch (e) {}
+    }
+
+    if (this.currentSubscription) {
+      try {
+        this.currentSubscription.remove?.();
+      } catch (e) {}
+      this.currentSubscription = null;
+    }
+
+    if (this.currentPlayer) {
+      const player = this.currentPlayer;
       this.currentPlayer = null;
+      this.destroyPlayer(player);
     }
   }
 

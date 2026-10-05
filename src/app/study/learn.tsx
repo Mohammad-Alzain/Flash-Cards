@@ -98,6 +98,13 @@ export default function LearnNewScreen() {
     });
   }, [currentCard]);
 
+  // Clean up audio on learn screen unmount
+  useEffect(() => {
+    return () => {
+      audioService.stop();
+    };
+  }, []);
+
   // Auto-play audio when card appears
   useEffect(() => {
     if (!autoPlayAudio || !currentCard) return;

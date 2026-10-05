@@ -526,10 +526,21 @@ class PodcastPlayerService {
     this.notify();
 
     if (this.lockScreenPlayer) {
+      if (this.lockScreenSub) {
+        try { this.lockScreenSub.remove?.(); } catch (e) {}
+        this.lockScreenSub = null;
+      }
       try {
         this.lockScreenPlayer.clearLockScreenControls();
         this.lockScreenPlayer.pause();
+        if (typeof this.lockScreenPlayer.remove === 'function') {
+          this.lockScreenPlayer.remove();
+        }
+        if (typeof this.lockScreenPlayer.release === 'function') {
+          this.lockScreenPlayer.release();
+        }
       } catch (e) {}
+      this.lockScreenPlayer = null;
     }
 
     if (Notifications && typeof Notifications.dismissNotificationAsync === 'function') {

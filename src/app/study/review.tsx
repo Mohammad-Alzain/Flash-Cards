@@ -95,6 +95,13 @@ export default function ReviewScreen() {
     });
   }, [currentCard]);
 
+  // Clean up audio on review screen unmount
+  useEffect(() => {
+    return () => {
+      audioService.stop();
+    };
+  }, []);
+
   // Auto-play front audio when card appears
   useEffect(() => {
     if (!autoPlayAudio || !currentCard || isFlipped) return;
@@ -207,6 +214,8 @@ export default function ReviewScreen() {
 
   const handleRate = async (rating: Rating) => {
     if (!currentCard) return;
+
+    audioService.stop();
 
     try {
       Haptics.impactAsync(

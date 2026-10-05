@@ -289,6 +289,12 @@
     "includeMedia": "Include Media Files",
     "includeMediaDesc": "Bundle images and audio inside the exported package",
     "exportAndShare": "Export & Share",
+    "saveToDevice": "Save to Device",
+    "shareFile": "Share File",
+    "savedSuccessfully": "Saved Successfully",
+    "fileSavedDesc": "File ({{fileName}}) was successfully saved to your device.",
+    "savingToDevice": "Saving to Device...",
+    "preparingShare": "Preparing Share...",
     "generating": "Generating export...",
     "preparingPackage": "Compressing package and preparing sharing sheet..."
   },

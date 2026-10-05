@@ -289,6 +289,12 @@
     "includeMedia": "تضمين الوسائط (الصور والتسجيلات)",
     "includeMediaDesc": "إرفاق الملفات الصوتية والصور داخل حزمة التصدير",
     "exportAndShare": "تصدير ومشاركة الملف",
+    "saveToDevice": "حفظ في الجهاز",
+    "shareFile": "مشاركة الملف",
+    "savedSuccessfully": "تم الحفظ بنجاح",
+    "fileSavedDesc": "تم حفظ الملف ({{fileName}}) في جهازك بنجاح.",
+    "savingToDevice": "جارٍ الحفظ في الجهاز...",
+    "preparingShare": "جارٍ تحضير المشاركة...",
     "generating": "جارٍ تحضير وتصدير الملف...",
     "preparingPackage": "جارٍ ضغط الحزمة وتحضير المشاركة..."
   },

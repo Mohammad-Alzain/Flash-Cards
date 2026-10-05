@@ -14,6 +14,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { ProgressBar } from '../ui/ProgressBar';
+import { CustomAlert } from '../common/CustomDialog';
 import { ExportManager } from '../../core/exporters/exportManager';
 import { ExportFormat, ExportProgress, ExportResult } from '../../core/exporters/types';
 import { isRTL } from '../../i18n';
@@ -38,19 +39,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [includeScheduling, setIncludeScheduling] = useState(true);
   const [includeMedia, setIncludeMedia] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [savingToDevice, setSavingToDevice] = useState(false);
+  const [savedSuccessfully, setSavedSuccessfully] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [result, setResult] = useState<ExportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const resetState = () => {
     setExporting(false);
+    setSavingToDevice(false);
+    setSavedSuccessfully(false);
     setProgress(null);
     setResult(null);
     setError(null);
   };
 
   const handleClose = () => {
-    if (exporting) return; // Prevent closing mid-export
+    if (exporting || savingToDevice) return; // Prevent closing mid-export or mid-save
     resetState();
     onClose();
   };
@@ -59,6 +64,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     try {
       setExporting(true);
       setError(null);
+      setSavedSuccessfully(false);
       setProgress({
         stage: 'inspect',
         percent: 5,
@@ -82,9 +88,32 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
+  const handleSaveToDevice = async () => {
+    if (!result) return;
+    try {
+      setSavingToDevice(true);
+      setError(null);
+      const saveRes = await ExportManager.saveToDevice(result.filePath, result.fileName);
+      if (saveRes.success) {
+        setSavedSuccessfully(true);
+        CustomAlert.alert(
+          rtl ? 'تم الحفظ بنجاح' : 'Saved Successfully',
+          rtl
+            ? `تم حفظ الملف (${result.fileName}) في جهازك بنجاح.`
+            : `File (${result.fileName}) was successfully saved to your device.`
+        );
+      }
+    } catch (err: any) {
+      setError(err?.message || (rtl ? 'فشل حفظ الملف في الجهاز' : 'Failed to save file to device'));
+    } finally {
+      setSavingToDevice(false);
+    }
+  };
+
   const handleShare = async () => {
     if (!result) return;
     try {
+      setError(null);
       await ExportManager.share(result.filePath);
     } catch (err: any) {
       setError(err?.message || (rtl ? 'فشل مشاركة الملف' : 'Could not share file'));
@@ -155,7 +184,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 </Text>
               )}
             </View>
-            {!exporting && (
+            {!exporting && !savingToDevice && (
               <Pressable onPress={handleClose} hitSlop={8} style={styles.closeBtn}>
                 <Ionicons name="close" size={22} color={colors.textSecondary} />
               </Pressable>
@@ -197,12 +226,39 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   </View>
                 </View>
 
+                {savedSuccessfully && (
+                  <View style={[styles.savedSuccessBanner, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]}>
+                    <Ionicons name="checkmark-done-circle-outline" size={20} color={colors.primary} style={{ marginHorizontal: 6 }} />
+                    <Text style={[styles.savedSuccessText, { color: colors.primary, textAlign: rtl ? 'right' : 'left' }]}>
+                      {rtl ? 'تم حفظ الملف في جهازك بنجاح' : 'File saved to device successfully'}
+                    </Text>
+                  </View>
+                )}
+
+                {error && (
+                  <View style={[styles.errorBox, { backgroundColor: `${colors.error}18`, borderColor: colors.error, marginBottom: 16, width: '100%' }]}>
+                    <Ionicons name="alert-circle-outline" size={18} color={colors.error} style={{ marginHorizontal: 4 }} />
+                    <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+                  </View>
+                )}
+
                 <View style={styles.resultActions}>
                   <Button
-                    title={rtl ? 'مشاركة أو حفظ الملف' : 'Share or Save File'}
-                    icon={<Ionicons name="share-social-outline" size={18} color="#FFFFFF" />}
+                    title={savingToDevice ? (rtl ? 'جارٍ الحفظ في الجهاز...' : 'Saving to Device...') : (rtl ? 'حفظ في الجهاز' : 'Save to Device')}
+                    icon={<Ionicons name="download-outline" size={18} color="#FFFFFF" />}
                     variant="primary"
                     size="md"
+                    loading={savingToDevice}
+                    disabled={savingToDevice}
+                    onPress={handleSaveToDevice}
+                    style={{ marginBottom: 10 }}
+                  />
+                  <Button
+                    title={rtl ? 'مشاركة الملف' : 'Share File'}
+                    icon={<Ionicons name="share-social-outline" size={18} color={colors.text} />}
+                    variant="secondary"
+                    size="md"
+                    disabled={savingToDevice}
                     onPress={handleShare}
                     style={{ marginBottom: 8 }}
                   />
@@ -210,6 +266,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     title={rtl ? 'إغلاق' : 'Close'}
                     variant="ghost"
                     size="sm"
+                    disabled={savingToDevice}
                     onPress={handleClose}
                   />
                 </View>
@@ -497,5 +554,19 @@ const styles = StyleSheet.create({
   },
   resultActions: {
     width: '100%',
+  },
+  savedSuccessBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 16,
+    width: '100%',
+  },
+  savedSuccessText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
 });

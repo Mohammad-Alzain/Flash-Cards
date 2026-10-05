@@ -42,6 +42,7 @@ export default function ExportScreen() {
   const [includeScheduling, setIncludeScheduling] = useState(true);
   const [includeMedia, setIncludeMedia] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportAction, setExportAction] = useState<'save' | 'share' | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
 
   useEffect(() => {
@@ -57,15 +58,16 @@ export default function ExportScreen() {
     loadDecks();
   }, []);
 
-  const handleExport = async () => {
+  const handleExport = async (action: 'save' | 'share') => {
     try {
+      setExportAction(action);
       setExporting(true);
       setProgress({
         stage: 'inspect',
         percent: 5,
         current: 0,
         total: 100,
-        message: 'بدء تجهيز ملف التصدير...',
+        message: rtl ? 'بدء تجهيز ملف التصدير...' : 'Starting export...',
       });
 
       const res = await ExportManager.export(format, {
@@ -75,12 +77,25 @@ export default function ExportScreen() {
         onProgress: (p) => setProgress(p),
       });
 
-      // Open native sharing sheet
-      await ExportManager.share(res.filePath);
+      if (action === 'save') {
+        const saveRes = await ExportManager.saveToDevice(res.filePath, res.fileName);
+        if (saveRes.success) {
+          CustomAlert.alert(
+            rtl ? 'تم الحفظ بنجاح' : 'Saved Successfully',
+            rtl
+              ? `تم حفظ الملف (${res.fileName}) في جهازك بنجاح.`
+              : `File (${res.fileName}) was successfully saved to your device.`
+          );
+        }
+      } else {
+        // Open native sharing sheet
+        await ExportManager.share(res.filePath);
+      }
     } catch (e: any) {
       CustomAlert.alert(t('common.error'), e.message || 'Export failed');
     } finally {
       setExporting(false);
+      setExportAction(null);
       setProgress(null);
     }
   };
@@ -299,15 +314,37 @@ export default function ExportScreen() {
           )}
         </Card>
 
-        {/* Export Button */}
-        <Button
-          title={exporting ? t('export.generating') : t('export.exportAndShare')}
-          variant="primary"
-          size="lg"
-          style={styles.exportButton}
-          onPress={handleExport}
-          disabled={exporting}
-        />
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          <Button
+            title={
+              exporting && exportAction === 'save'
+                ? t('export.savingToDevice')
+                : t('export.saveToDevice')
+            }
+            icon={<Ionicons name="download-outline" size={20} color="#FFFFFF" />}
+            variant="primary"
+            size="lg"
+            style={styles.exportButton}
+            onPress={() => handleExport('save')}
+            disabled={exporting}
+            loading={exporting && exportAction === 'save'}
+          />
+          <Button
+            title={
+              exporting && exportAction === 'share'
+                ? t('export.preparingShare')
+                : t('export.shareFile')
+            }
+            icon={<Ionicons name="share-social-outline" size={20} color={theme.colors.text} />}
+            variant="secondary"
+            size="lg"
+            style={styles.shareButton}
+            onPress={() => handleExport('share')}
+            disabled={exporting}
+            loading={exporting && exportAction === 'share'}
+          />
+        </View>
       </ScrollView>
 
       {/* Exporting Loading Overlay with Live Progress */}
@@ -407,8 +444,15 @@ const styles = StyleSheet.create({
     height: 1,
     marginVertical: 10,
   },
-  exportButton: {
+  actionButtonsContainer: {
     marginTop: 24,
+    gap: 12,
+  },
+  exportButton: {
+    width: '100%',
+  },
+  shareButton: {
+    width: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFill,

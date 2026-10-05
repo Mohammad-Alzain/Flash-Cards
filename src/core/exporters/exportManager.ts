@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { getDatabase } from '../db/connection';
@@ -5,6 +6,24 @@ import { ExportFormat, ExportOptions, ExportResult, NoteExportData } from './typ
 import { exportToDelimitedText } from './csvExporter';
 import { exportToXlsxBase64 } from './xlsxExporter';
 import { exportToApkg } from './apkgExporter';
+
+export function getMimeTypeForFile(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'apkg':
+      // 'application/apkg' ensures Android DocumentsProvider does not append .bin or .zip
+      return 'application/apkg';
+    case 'xlsx':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    case 'csv':
+      return 'text/csv';
+    case 'tsv':
+    case 'txt':
+      return 'text/plain';
+    default:
+      return 'application/octet-stream';
+  }
+}
 
 export class ExportManager {
   /**
@@ -155,6 +174,70 @@ export class ExportManager {
       mediaCount: 0,
       sizeBytes: outInfo.exists && 'size' in outInfo ? outInfo.size || 0 : 0,
     };
+  }
+
+  /**
+   * Saves an exported file directly to user-selected device storage.
+   * On Android:
+   *  - Uses FileSystem.StorageAccessFramework to allow user to pick any folder (Downloads, Documents, etc.).
+   *  - Writes the file content into the user's selected location.
+   * On iOS / other platforms:
+   *  - Invokes native sharing sheet which natively provides "Save to Files" (حفظ في الملفات).
+   */
+  static async saveToDevice(
+    filePath: string,
+    fileName: string,
+    mimeType?: string
+  ): Promise<{ success: boolean; cancelled?: boolean; uri?: string }> {
+    const cleanFileName = fileName.replace(/[/\\?%*:|"<>]/g, '_');
+    const determinedMime = mimeType || getMimeTypeForFile(cleanFileName);
+
+    if (Platform.OS === 'android') {
+      try {
+        if (FileSystem.StorageAccessFramework) {
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (!permissions.granted) {
+            return { success: false, cancelled: true };
+          }
+
+          const destinationUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            cleanFileName,
+            determinedMime
+          );
+
+          const base64Data = await FileSystem.readAsStringAsync(filePath, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          await FileSystem.writeAsStringAsync(destinationUri, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          return { success: true, uri: destinationUri };
+        }
+      } catch (safError: any) {
+        console.warn('StorageAccessFramework failed, falling back to native share sheet:', safError);
+        await this.share(filePath, determinedMime);
+        return { success: true };
+      }
+    }
+
+    if (Platform.OS === 'web') {
+      if (typeof document !== 'undefined') {
+        const link = document.createElement('a');
+        link.href = filePath;
+        link.download = cleanFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return { success: true };
+      }
+    }
+
+    // iOS and fallback
+    await this.share(filePath, determinedMime);
+    return { success: true };
   }
 
   /**

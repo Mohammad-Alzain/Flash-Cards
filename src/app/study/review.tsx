@@ -24,7 +24,6 @@ import { FlashCardFlip } from '../../components/card/FlashCardFlip';
 import { ProgressBar, Badge, Button, Card } from '../../components/ui';
 import { renderCard } from '../../core/render/templateEngine';
 import { Whiteboard } from '../../components/card/Whiteboard';
-import { TtsService } from '../../core/audio/ttsService';
 import { Ionicons } from '@expo/vector-icons';
 import { NoteEditorModal } from '../../components/card/NoteEditorModal';
 import { AIAssistantModal } from '../../components/card/AIAssistantModal';
@@ -111,21 +110,9 @@ export default function ReviewScreen() {
       await new Promise((r) => setTimeout(r, 200));
       if (isCancelled) return;
       if (rendered?.frontAudio && rendered.frontAudio.length > 0) {
-        let anyPlayed = false;
         for (const file of rendered.frontAudio) {
           if (isCancelled) break;
-          const ok = await audioService.playAndWait(file);
-          if (ok) anyPlayed = true;
-        }
-        if (!anyPlayed && !isCancelled) {
-          const frontText =
-            currentCard?.note_fields?.Front ||
-            Object.values(currentCard?.note_fields || {})[0] ||
-            '';
-          if (frontText) {
-            console.log(`[MEDIA] Front audio file not found, falling back to TTS: "${frontText}"`);
-            await TtsService.speak(frontText);
-          }
+          await audioService.playAndWait(file);
         }
       }
     };
@@ -147,21 +134,9 @@ export default function ReviewScreen() {
       await new Promise((r) => setTimeout(r, 200));
       if (isCancelled) return;
       if (rendered?.backAudio && rendered.backAudio.length > 0) {
-        let anyPlayed = false;
         for (const file of rendered.backAudio) {
           if (isCancelled) break;
-          const ok = await audioService.playAndWait(file);
-          if (ok) anyPlayed = true;
-        }
-        if (!anyPlayed && !isCancelled) {
-          const backText =
-            currentCard?.note_fields?.Back ||
-            Object.values(currentCard?.note_fields || {})[1] ||
-            '';
-          if (backText) {
-            console.log(`[MEDIA] Back audio file not found, falling back to TTS: "${backText}"`);
-            await TtsService.speak(backText);
-          }
+          await audioService.playAndWait(file);
         }
       }
     };
@@ -189,20 +164,9 @@ export default function ReviewScreen() {
     } catch (e) {}
 
     const audioList = isFlipped ? rendered?.backAudio : rendered?.frontAudio;
-    let anyPlayed = false;
     if (audioList && audioList.length > 0) {
       for (const file of audioList) {
-        const ok = await audioService.playAndWait(file);
-        if (ok) anyPlayed = true;
-      }
-    }
-    if (!anyPlayed) {
-      const textToSpeak = isFlipped
-        ? currentCard?.note_fields?.Back || Object.values(currentCard?.note_fields || {})[1] || ''
-        : currentCard?.note_fields?.Front || Object.values(currentCard?.note_fields || {})[0] || '';
-      if (textToSpeak) {
-        console.log(`[MEDIA] Replay audio fallback to TTS: "${textToSpeak}"`);
-        TtsService.speak(textToSpeak);
+        await audioService.playAndWait(file);
       }
     }
   };

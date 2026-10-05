@@ -22,7 +22,6 @@ import { AIAssistantModal } from '../../components/card/AIAssistantModal';
 import { audioService } from '../../core/audio/audioService';
 import { settingsRepository } from '../../core/db/repositories/settingsRepository';
 import { deckRepository } from '../../core/db/repositories/deckRepository';
-import { TtsService } from '../../core/audio/ttsService';
 import { mediaManager } from '../../core/media/mediaManager';
 
 export default function LearnNewScreen() {
@@ -120,27 +119,13 @@ export default function LearnNewScreen() {
       if (rendered?.frontAudio && rendered.frontAudio.length > 0) {
         for (const file of rendered.frontAudio) {
           if (isCancelled) break;
-          const ok = await audioService.playAndWait(file);
-          if (ok) anyPlayed = true;
+          await audioService.playAndWait(file);
         }
       }
       if (rendered?.backAudio && rendered.backAudio.length > 0) {
         for (const file of rendered.backAudio) {
           if (isCancelled) break;
-          const ok = await audioService.playAndWait(file);
-          if (ok) anyPlayed = true;
-        }
-      }
-
-      if (!anyPlayed && !isCancelled) {
-        const textToSpeak =
-          currentCard?.note_fields?.Front ||
-          currentCard?.note_fields?.Back ||
-          Object.values(currentCard?.note_fields || {})[0] ||
-          '';
-        if (textToSpeak) {
-          console.log(`[MEDIA] Learn audio file missing, falling back to TTS: "${textToSpeak}"`);
-          await TtsService.speak(textToSpeak);
+          await audioService.playAndWait(file);
         }
       }
     };
@@ -168,22 +153,9 @@ export default function LearnNewScreen() {
     } catch (e) {}
 
     const audioList = [...(rendered?.frontAudio || []), ...(rendered?.backAudio || [])];
-    let anyPlayed = false;
     if (audioList && audioList.length > 0) {
       for (const file of audioList) {
-        const ok = await audioService.playAndWait(file);
-        if (ok) anyPlayed = true;
-      }
-    }
-    if (!anyPlayed) {
-      const textToSpeak =
-        currentCard?.note_fields?.Front ||
-        currentCard?.note_fields?.Back ||
-        Object.values(currentCard?.note_fields || {})[0] ||
-        '';
-      if (textToSpeak) {
-        console.log(`[MEDIA] Learn replay audio fallback to TTS: "${textToSpeak}"`);
-        TtsService.speak(textToSpeak);
+        await audioService.playAndWait(file);
       }
     }
   };

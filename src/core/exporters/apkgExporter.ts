@@ -29,6 +29,63 @@ function generateAnkiGuid(): string {
   return res;
 }
 
+// Extract all media references from note text (both [sound:...] and <... src="...">)
+function extractMediaReferences(text: string): string[] {
+  if (!text) return [];
+  const refs: string[] = [];
+
+  // 1. Match [sound:filename] or [sound:path/to/filename]
+  const soundRegex = /\[sound:([^\]]+)\]/gi;
+  let match: RegExpExecArray | null;
+  while ((match = soundRegex.exec(text)) !== null) {
+    const raw = match[1].trim();
+    if (raw && !raw.startsWith('http://') && !raw.startsWith('https://') && !raw.startsWith('data:')) {
+      let base = raw.split(/[/\\]/).pop() || raw;
+      base = base.split(/[?#]/)[0].trim();
+      if (base) {
+        refs.push(base);
+        try {
+          const decoded = decodeURIComponent(base);
+          if (decoded !== base) refs.push(decoded);
+        } catch {}
+      }
+    }
+  }
+
+  // 2. Match src="..." or src='...' in media tags
+  const srcRegex = /<(?:img|audio|video|source|track)\b[^>]*?\bsrc=["']?([^"'\s>]+)["']?/gi;
+  while ((match = srcRegex.exec(text)) !== null) {
+    const raw = match[1].trim();
+    if (raw && !raw.startsWith('http://') && !raw.startsWith('https://') && !raw.startsWith('data:')) {
+      let base = raw.split(/[/\\]/).pop() || raw;
+      base = base.split(/[?#]/)[0].trim();
+      if (base) {
+        refs.push(base);
+        try {
+          const decoded = decodeURIComponent(base);
+          if (decoded !== base) refs.push(decoded);
+        } catch {}
+      }
+    }
+  }
+
+  return refs;
+}
+
+// Convert local file:// paths in fields to relative filenames for standard Anki export
+function cleanFieldForAnkiExport(val: string): string {
+  if (!val) return '';
+  let cleaned = val.replace(
+    /(<(?:img|audio|video|source|track)\b[^>]*?\bsrc=["']?)(?:file:\/\/[^"'\s>]*\/)([^"'\s>]+)(["']?)/gi,
+    '$1$2$3'
+  );
+  cleaned = cleaned.replace(
+    /\[sound:(?:file:\/\/[^\]]*\/)([^\]]+)\]/gi,
+    '[sound:$1]'
+  );
+  return cleaned;
+}
+
 export async function exportToApkg(
   options: ExportOptions = {}
 ): Promise<ExportResult> {
@@ -224,6 +281,8 @@ export async function exportToApkg(
   try {
     await tempDb.execAsync(`
     PRAGMA foreign_keys = OFF;
+    PRAGMA journal_mode = DELETE;
+    PRAGMA synchronous = OFF;
 
     CREATE TABLE col (
       id integer primary key,
@@ -363,9 +422,11 @@ export async function exportToApkg(
     JSON.stringify(ankiDconf)
   );
 
-  // Insert notes & cards into tempDb
+  // Insert notes & cards into tempDb inside an explicit transaction for 100x write speed
   let noteCounter = nowMs;
   let cardCounter = nowMs + 10000;
+
+  await tempDb.execAsync('BEGIN TRANSACTION;');
 
   for (const [, n] of notesMap.entries()) {
     const ankiNid = ++noteCounter;
@@ -386,8 +447,10 @@ export async function exportToApkg(
       fieldVals.push(...Object.values(fieldsObj));
     }
 
-    const fldsCombined = fieldVals.join('\x1f');
-    const sfld = fieldVals[0] || '';
+    // Clean any local file:// paths for standard Anki export
+    const cleanedFieldVals = fieldVals.map((v) => cleanFieldForAnkiExport(v));
+    const fldsCombined = cleanedFieldVals.join('\x1f');
+    const sfld = cleanedFieldVals[0] || '';
     const csum = simpleChecksum(sfld);
 
     // Format tags with Anki wrapping spaces: " tag1 tag2 "
@@ -409,23 +472,9 @@ export async function exportToApkg(
     // Scan for media references in field values: src="filename" or [sound:filename]
     if (options.includeMedia !== false) {
       for (const val of fieldVals) {
-        const imgMatches = val.match(/src=["']([^"']+)["']/g);
-        if (imgMatches) {
-          for (const m of imgMatches) {
-            const clean = m.replace(/src=["']/, '').replace(/["']$/, '').trim();
-            if (clean && !clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:')) {
-              mediaRefList.push(clean.replace(/^file:\/\//, ''));
-            }
-          }
-        }
-        const sndMatches = val.match(/\[sound:([^\]]+)\]/g);
-        if (sndMatches) {
-          for (const m of sndMatches) {
-            const clean = m.replace(/\[sound:/, '').replace(/\]$/, '').trim();
-            if (clean && !clean.startsWith('http://') && !clean.startsWith('https://')) {
-              mediaRefList.push(clean.replace(/^file:\/\//, ''));
-            }
-          }
+        const refs = extractMediaReferences(val);
+        if (refs.length > 0) {
+          mediaRefList.push(...refs);
         }
       }
     }
@@ -481,6 +530,33 @@ export async function exportToApkg(
       );
     }
   }
+
+  await tempDb.execAsync('COMMIT;');
+
+  // Also query note_media table to ensure any media attached via database relation is captured
+  if (options.includeMedia !== false) {
+    try {
+      const noteIds = Array.from(notesMap.keys());
+      if (noteIds.length > 0) {
+        for (let i = 0; i < noteIds.length; i += 400) {
+          const chunk = noteIds.slice(i, i + 400);
+          const placeholders = chunk.map(() => '?').join(',');
+          const rows = await db.getAllAsync<{ filename: string }>(
+            `SELECT m.filename FROM media m 
+             JOIN note_media nm ON m.id = nm.media_id 
+             WHERE nm.note_id IN (${placeholders})`,
+            ...chunk
+          );
+          for (const r of rows) {
+            if (r.filename) {
+              const base = r.filename.split(/[/\\]/).pop() || r.filename;
+              mediaRefList.push(base);
+            }
+          }
+        }
+      }
+    } catch {}
+  }
 } finally {
   try {
     await tempDb.closeAsync();
@@ -493,69 +569,134 @@ export async function exportToApkg(
   const dbBase64 = await FileSystem.readAsStringAsync(dbFilePath, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  zip.file('collection.anki2', dbBase64, { base64: true });
+  zip.file('collection.anki2', dbBase64, {
+    base64: true,
+    compression: 'DEFLATE',
+    compressionOptions: { level: 1 },
+  });
 
   // 6. Add media files to zip
   const mediaMap: Record<string, string> = {};
   let mediaCounter = 0;
-  const uniqueMedia = Array.from(new Set(mediaRefList));
+  const uniqueMedia = Array.from(new Set(mediaRefList.map((m) => m.trim()).filter(Boolean)));
 
   if (options.includeMedia !== false && uniqueMedia.length > 0) {
     options.onProgress?.({
       stage: 'media',
-      percent: 60,
+      percent: 50,
       current: 0,
       total: uniqueMedia.length,
-      message: `جاري حزم الوسائط والصوتيات (${uniqueMedia.length} ملف)...`,
+      message: `جاري فحص وتجهيز الوسائط والصوتيات (${uniqueMedia.length} ملف)...`,
     });
 
-    for (let idx = 0; idx < uniqueMedia.length; idx++) {
+    // Pre-index the media directory in 1 single filesystem call
+    const mediaDir = mediaManager.getMediaDirectory();
+    const diskMediaMap = new Map<string, string>(); // indexed filename variations -> full file URI
+
+    try {
+      if (mediaDir) {
+        const files = await FileSystem.readDirectoryAsync(mediaDir);
+        for (const f of files) {
+          const fullUri = `${mediaDir}${f}`;
+          diskMediaMap.set(f, fullUri);
+          diskMediaMap.set(f.toLowerCase(), fullUri);
+          try {
+            diskMediaMap.set(decodeURIComponent(f).toLowerCase(), fullUri);
+            diskMediaMap.set(f.normalize('NFC').toLowerCase(), fullUri);
+            diskMediaMap.set(f.normalize('NFD').toLowerCase(), fullUri);
+          } catch {}
+        }
+      }
+    } catch (e) {
+      console.warn('[APKG Export] Could not index media directory:', e);
+    }
+
+    const totalMedia = uniqueMedia.length;
+    const progressInterval = Math.max(1, Math.min(10, Math.floor(totalMedia / 25)));
+
+    for (let idx = 0; idx < totalMedia; idx++) {
       const filename = uniqueMedia[idx];
-      const existingUri = await mediaManager.findExistingUri(filename);
+      const cleanLower = filename.toLowerCase();
+
+      // Instant O(1) in-memory lookup
+      let existingUri: string | null = diskMediaMap.get(filename) || diskMediaMap.get(cleanLower) || null;
+      if (!existingUri) {
+        try {
+          existingUri =
+            diskMediaMap.get(decodeURIComponent(cleanLower)) ||
+            diskMediaMap.get(cleanLower.normalize('NFC')) ||
+            diskMediaMap.get(cleanLower.normalize('NFD')) ||
+            null;
+        } catch {}
+      }
+
+      // Fallback only if not in pre-indexed map
+      if (!existingUri) {
+        existingUri = await mediaManager.findExistingUri(filename);
+      }
+
       if (existingUri) {
         try {
           const mediaBase64 = await FileSystem.readAsStringAsync(existingUri, {
             encoding: FileSystem.EncodingType.Base64,
           });
           const indexStr = String(mediaCounter++);
-          zip.file(indexStr, mediaBase64, { base64: true });
-          // Base basename
-          const baseCleanName = filename.split('/').pop() || filename;
+          // CRITICAL: compression 'STORE' stores already-compressed media files instantly with ZERO CPU lag!
+          zip.file(indexStr, mediaBase64, {
+            base64: true,
+            compression: 'STORE',
+          });
+          const baseCleanName = filename.split(/[/\\]/).pop() || filename;
           mediaMap[indexStr] = baseCleanName;
         } catch (mErr) {
           console.warn('[APKG Export] Could not read media file:', filename, mErr);
         }
       }
 
-      if (idx % 15 === 0) {
-        const progressP = 60 + Math.round((idx / uniqueMedia.length) * 20);
+      // Dynamic live progress and cooperative event-loop yield
+      if (idx % progressInterval === 0 || idx === totalMedia - 1) {
+        const progressP = 50 + Math.round(((idx + 1) / totalMedia) * 30); // 50% to 80%
         options.onProgress?.({
           stage: 'media',
           percent: progressP,
-          current: idx,
-          total: uniqueMedia.length,
-          message: `جاري حزم الوسائط والصوتيات (${idx}/${uniqueMedia.length})...`,
+          current: idx + 1,
+          total: totalMedia,
+          message: `جاري حزم الوسائط والصوتيات (${idx + 1}/${totalMedia})...`,
         });
+        // Yield to JS event loop so UI ProgressBar renders fluidly
+        await new Promise((r) => setTimeout(r, 0));
       }
     }
   }
 
   zip.file('media', JSON.stringify(mediaMap));
 
-  // 7. Generate APKG zip archive
+  // 7. Generate APKG zip archive with dynamic live progress
   options.onProgress?.({
     stage: 'compressing',
-    percent: 85,
-    current: 85,
+    percent: 82,
+    current: 0,
     total: 100,
-    message: 'جاري ضغط حزمة APKG...',
+    message: 'جاري إنشاء حزمة APKG النهائية...',
   });
 
-  const zipBase64 = await zip.generateAsync({
-    type: 'base64',
-    compression: 'DEFLATE',
-    compressionOptions: { level: 6 },
-  });
+  const zipBase64 = await zip.generateAsync(
+    {
+      type: 'base64',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 1 },
+    },
+    (metadata) => {
+      const p = 82 + Math.round((metadata.percent / 100) * 16); // 82% to 98%
+      options.onProgress?.({
+        stage: 'compressing',
+        percent: Math.min(98, p),
+        current: Math.round(metadata.percent),
+        total: 100,
+        message: `جاري إنشاء حزمة APKG النهائية (${Math.round(metadata.percent)}%)...`,
+      });
+    }
+  );
 
   // Target output
   const outDir = `${FileSystem.cacheDirectory}exports/`;

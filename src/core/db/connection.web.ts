@@ -15,6 +15,8 @@ export async function checkDatabaseIntegrity(): Promise<{ ok: boolean; message: 
   };
 }
 
+export async function optimizeDatabase(): Promise<void> {}
+
 export async function checkpointDatabase(): Promise<void> {}
 
 export async function closeDatabase(): Promise<void> {}

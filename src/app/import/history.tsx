@@ -1,167 +1,70 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
-import { CustomAlert } from '../../components/common/CustomDialog';
+import React from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
-import { Header, Card, Button, Badge } from '../../components/ui';
+import { CustomAlert } from '../../components/common/CustomDialog';
+import { Screen, Header, Card, Row, AppText, Badge, Button, IconTile, EmptyState, IconName } from '../../components/ui';
 import { importManager } from '../../core/importers/importManager';
+import { useFocusData } from '../../hooks/useFocusData';
+
+const SOURCE_ICON: Record<string, IconName> = {
+  apkg: 'cube',
+  csv: 'document-text',
+  txt: 'reader',
+  xlsx: 'grid',
+  paste: 'clipboard',
+};
 
 export default function ImportHistoryScreen() {
-  const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
-  const rtl = isRTL();
+  const { data: history, reload } = useFocusData<any[]>(() => importManager.getHistory(), [], 'import history');
 
-  const [history, setHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadHistory = async () => {
-    setLoading(true);
-    const data = await importManager.getHistory();
-    setHistory(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
-  const handleUndo = (item: any) => {
-    CustomAlert.alert(
-      t('import_wizard.undo_button'),
-      rtl
-        ? `هل تريد التراجع عن استيراد "${item.filename}"؟ سيتم حذف جميع البطاقات (${item.notes_added}) المضافة في هذا الاستيراد.`
-        : `Undo import for "${item.filename}"? All ${item.notes_added} notes imported in this batch will be removed.`,
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            const success = await importManager.undoImport(item.id);
-            if (success) {
-              CustomAlert.alert(t('common.done'), rtl ? 'تم التراجع عن الاستيراد بنجاح.' : 'Import successfully reverted.');
-              await loadHistory();
-            } else {
-              CustomAlert.alert(t('common.error'), rtl ? 'تعذر التراجع عن هذا الاستيراد.' : 'Could not undo this import.');
-            }
-          },
+  const undo = (item: any) =>
+    CustomAlert.alert(t('import_wizard.undo_button'), t('import_history.undo_msg', { name: item.filename, count: item.notes_added }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          if (await importManager.undoImport(item.id)) {
+            CustomAlert.alert(t('common.done'), t('import_history.undo_done'));
+            await reload();
+          } else {
+            CustomAlert.alert(t('common.error'), t('import_history.undo_failed'));
+          }
         },
-      ]
-    );
-  };
+      },
+    ]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <Header
-        title={t('import_wizard.history')}
-        onBack={() => router.back()}
-      />
-
-      <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
-        {history.length === 0 ? (
-          <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>
-            {rtl ? 'لا يوجد سجل استيراد سابق.' : 'No past imports found.'}
-          </Text>
-        ) : (
-          history.map((item) => (
-            <Card key={item.id} style={[styles.historyCard, { marginBottom: spacing.md }]}>
-              <View style={[styles.row, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-                <View style={styles.infoCol}>
-                  <Text
-                    style={[
-                      styles.fileName,
-                      {
-                        color: colors.text,
-                        fontSize: typography.sizes.md,
-                        fontWeight: typography.weights.bold,
-                        textAlign: rtl ? 'right' : 'left',
-                      },
-                    ]}
-                  >
-                    {item.filename}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dateText,
-                      {
-                        color: colors.textSecondary,
-                        fontSize: typography.sizes.xs,
-                        textAlign: rtl ? 'right' : 'left',
-                        marginTop: 2,
-                      },
-                    ]}
-                  >
-                    {new Date(item.imported_at).toLocaleString()}
-                  </Text>
-                </View>
-
-                <Badge count={item.source_type.toUpperCase()} variant="accent" size="sm" />
+    <Screen decor header={<Header title={t('import_wizard.history')} subtitle={t('import_history.subtitle')} icon="time" iconTone="teal" onBack={() => router.back()} />}>
+      {history.length === 0 ? (
+        <EmptyState illustration="import" title={t('import_history.empty_title')} description={t('import_history.empty_desc')} />
+      ) : (
+        history.map((item) => (
+          <Card key={item.id} style={{ marginBottom: 12 }}>
+            <Row gap={12}>
+              <IconTile icon={SOURCE_ICON[item.source_type] ?? 'document'} tone="teal" size={44} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodyStrong" numberOfLines={1}>
+                  {item.filename}
+                </AppText>
+                <AppText variant="caption" color="textMuted">
+                  {new Date(item.imported_at).toLocaleString()}
+                </AppText>
               </View>
-
-              <View
-                style={[
-                  styles.detailsRow,
-                  {
-                    flexDirection: rtl ? 'row-reverse' : 'row',
-                    borderTopColor: colors.border,
-                    marginTop: spacing.sm,
-                    paddingTop: spacing.sm,
-                  },
-                ]}
-              >
-                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: 'bold' }}>
-                  +{item.notes_added} {rtl ? 'مضافة' : 'added'}
-                </Text>
-                {item.notes_skipped > 0 && (
-                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-                    ({item.notes_skipped} {rtl ? 'تم تخطيها' : 'skipped'})
-                  </Text>
-                )}
-
-                <Button
-                  title={t('import_wizard.undo_button')}
-                  variant="danger"
-                  size="sm"
-                  onPress={() => handleUndo(item)}
-                />
-              </View>
-            </Card>
-          ))
-        )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </SafeAreaView>
+              <Badge size="sm" variant="accent" label={String(item.source_type).toUpperCase()} />
+            </Row>
+            <Row gap={8} style={{ marginTop: 12 }}>
+              <Badge variant="success" icon="add-circle" label={t('import_history.added', { count: item.notes_added })} />
+              {item.notes_skipped > 0 && <Badge variant="neutral" label={t('import_history.skipped', { count: item.notes_skipped })} />}
+              <View style={{ flex: 1 }} />
+              <Button title={t('import_wizard.undo_button')} icon="arrow-undo" variant="dangerSoft" size="sm" onPress={() => undo(item)} />
+            </Row>
+          </Card>
+        ))
+      )}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  content: {},
-  historyCard: {},
-  row: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  infoCol: {
-    flex: 1,
-  },
-  fileName: {},
-  dateText: {},
-  detailsRow: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-  },
-});

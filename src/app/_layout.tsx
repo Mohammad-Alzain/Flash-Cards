@@ -1,39 +1,77 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, ActivityIndicator, Text, StyleSheet, Platform } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform, AppState, AppStateStatus } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider, useTheme } from '../theme';
-import { initializeDatabase } from '../core/db/connection';
-import '../i18n'; // Init i18next
-
-import { AppState, AppStateStatus } from 'react-native';
+import { useFonts } from 'expo-font';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import { ThemeProvider, useTheme, fontAssets, markFontsReady } from '../theme';
+import { initializeDatabase } from '../core/db/connection';
+import { restoreUserLanguage } from '../i18n'; // also initialises i18next
 import { AppLockManager } from '../core/security/appLock';
 import { LockOverlay } from '../components/security/LockOverlay';
 import { CustomDialogContainer } from '../components/common/CustomDialog';
 import { settingsRepository } from '../core/db/repositories/settingsRepository';
 import { notificationService } from '../core/notifications/notificationService';
+import { reminderService } from '../core/reminders/reminderService';
 import { Logo } from '../components/brand/Logo';
+import { AnimatedSplash } from '../components/brand/AnimatedSplash';
+import { Illustration } from '../components/illustrations';
+import { AppText, Card, Row, IconTile } from '../components/ui';
 
 // Prevent native splash screen from auto hiding before DB initialization
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-function RootApp() {
+/** Minimum gap between automatic "quick card" prompts on app resume. */
+const QUICK_CARD_COOLDOWN_MS = 5 * 60 * 1000;
+
+function WebNotice() {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  return (
+    <View style={[styles.center, { backgroundColor: colors.background }]}>
+      <Illustration name="welcome" size={220} />
+      <AppText variant="h1" align="center" style={{ marginTop: 12 }}>
+        {t('app.web_title')}
+      </AppText>
+      <AppText variant="body" color="textSecondary" align="center" style={{ marginTop: 8, maxWidth: 480 }}>
+        {t('app.web_desc')}
+      </AppText>
+      <Card style={{ marginTop: 24, maxWidth: 480, width: '100%' }}>
+        <Row gap={10} style={{ marginBottom: 12 }}>
+          <IconTile icon="phone-portrait" tone="indigo" size={36} />
+          <AppText variant="title">{t('app.web_steps_title')}</AppText>
+        </Row>
+        {[t('app.web_step_1'), t('app.web_step_2'), t('app.web_step_3')].map((step, i) => (
+          <Row key={i} gap={10} align="flex-start" style={{ marginTop: 6 }}>
+            <AppText variant="bodyStrong" color="primary">
+              {i + 1}.
+            </AppText>
+            <AppText variant="body" color="textSecondary" style={{ flex: 1 }}>
+              {step}
+            </AppText>
+          </Row>
+        ))}
+      </Card>
+    </View>
+  );
+}
+
+function RootApp({ onReady }: { onReady: () => void }) {
   const router = useRouter();
-  const { colors, isDark, spacing } = useTheme();
+  const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
   const [dbReady, setDbReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const lastQuickCardTimeRef = useRef<number>(0);
 
+  // The animated splash (not this screen) hides the native splash.
   useEffect(() => {
-    if (dbReady || error) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [dbReady, error]);
+    if (dbReady || error || Platform.OS === 'web') onReady();
+  }, [dbReady, error, onReady]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -42,10 +80,12 @@ function RootApp() {
 
     initializeDatabase()
       .then(async () => {
+        await restoreUserLanguage((key) => settingsRepository.get(key, ''));
         setDbReady(true);
         const locked = await AppLockManager.evaluateAppResume();
         if (locked) setIsLocked(true);
         notificationService.registerCategories().catch(() => {});
+        reminderService.resync();
       })
       .catch((err) => {
         console.error('Database initialization error:', err);
@@ -55,40 +95,45 @@ function RootApp() {
     const subscription = AppState.addEventListener('change', async (nextState: AppStateStatus) => {
       if (nextState === 'background' || nextState === 'inactive') {
         AppLockManager.onAppBackground();
-      } else if (nextState === 'active') {
-        if (Platform.OS === 'android') {
-          NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-        }
-        const locked = await AppLockManager.evaluateAppResume();
-        if (locked) {
-          setIsLocked(true);
-        } else {
-          // Check if "Quick Card on App Open / Phone Unlock" is enabled
-          try {
-            const quickCardEnabled = await settingsRepository.get('quick_card_on_open', '0');
-            const now = Date.now();
-            // Cooldown of 5 minutes between prompts so it doesn't interrupt frequent app switching
-            if (quickCardEnabled === '1' && now - lastQuickCardTimeRef.current > 5 * 60 * 1000) {
-              lastQuickCardTimeRef.current = now;
-              setTimeout(() => {
-                router.push('/modal/quick-card');
-              }, 500);
-            }
-          } catch (e) {}
-        }
+        return;
       }
+      if (nextState !== 'active') return;
+
+      if (Platform.OS === 'android') {
+        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+      }
+      const locked = await AppLockManager.evaluateAppResume();
+      if (locked) {
+        setIsLocked(true);
+        return;
+      }
+      // "Quick Card on App Open / Phone Unlock"
+      try {
+        const quickCardEnabled = await settingsRepository.get('quick_card_on_open', '0');
+        const now = Date.now();
+        if (quickCardEnabled === '1' && now - lastQuickCardTimeRef.current > QUICK_CARD_COOLDOWN_MS) {
+          lastQuickCardTimeRef.current = now;
+          setTimeout(() => router.push('/modal/quick-card'), 500);
+        }
+      } catch {}
     });
 
     // Listen to notification responses (interactive action buttons)
-    let notifSub: any = null;
+    let notifSub: { remove?: () => void } | null = null;
     try {
       const Notifications = require('expo-notifications');
       if (Notifications && typeof Notifications.addNotificationResponseReceivedListener === 'function') {
         notifSub = Notifications.addNotificationResponseReceivedListener((response: any) => {
+          const data = response?.notification?.request?.content?.data;
+          // Tapping a study reminder opens the reminder's deck (or stays on home).
+          if (data?.kind === 'study_reminder' && data.deckId) {
+            router.push(`/decks/${data.deckId}`);
+            return;
+          }
           notificationService.handleNotificationResponse(response);
         });
       }
-    } catch (e) {}
+    } catch {}
 
     return () => {
       subscription.remove();
@@ -97,38 +142,22 @@ function RootApp() {
   }, []);
 
   if (Platform.OS === 'web') {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background, padding: 32 }]}>
-        <Ionicons name="phone-portrait-outline" size={64} color={colors.primary} style={{ marginBottom: 16 }} />
-        <Text style={[styles.errorTitle, { color: colors.primary, fontSize: 24, textAlign: 'center', fontWeight: '800' }]}>
-          تطبيق بطاقات الذاكرة (AnkiDroid)
-        </Text>
-        <Text style={[styles.errorDesc, { color: colors.text, fontSize: 16, textAlign: 'center', marginTop: 12, lineHeight: 24, maxWidth: 500 }]}>
-          هذا التطبيق مصمم ومبني بالكامل كـ تطبيق جوال أصيل (Native Mobile App) بمحرك قواعد بيانات SQLite محلي 100% أوفلاين.
-        </Text>
-
-        <View style={{ marginTop: 24, padding: 20, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 2, borderColor: colors.border, maxWidth: 500, width: '100%' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16, textAlign: 'right' }}>
-              طريقة التجربة على هاتفك:
-            </Text>
-            <Ionicons name="phone-portrait" size={18} color={colors.primary} style={{ marginLeft: 6 }} />
-          </View>
-          <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 24, textAlign: 'right' }}>
-            1. حمّل تطبيق <Text style={{ fontWeight: 'bold', color: colors.primary }}>Expo Go</Text> على هاتفك (Android أو iPhone).{'\n'}
-            2. افتح كاميرا الهاتف أو Expo Go وامسح رمز الـ <Text style={{ fontWeight: 'bold', color: colors.primary }}>QR Code</Text> الظاهر في سطر الأوامر (Terminal).{'\n'}
-            3. أو لتشغيل محاكي Android: اضغط حرف <Text style={{ fontWeight: 'bold', color: colors.primary }}>a</Text> في سطر الأوامر.
-          </Text>
-        </View>
-      </View>
-    );
+    return <WebNotice />;
   }
 
   if (error) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorTitle, { color: colors.error }]}>Database Error</Text>
-        <Text style={[styles.errorDesc, { color: colors.textSecondary }]}>{error}</Text>
+        <Illustration name="error" size={220} />
+        <AppText variant="h2" align="center" style={{ marginTop: 12 }}>
+          {t('app.db_error_title')}
+        </AppText>
+        <AppText variant="body" color="textSecondary" align="center" style={{ marginTop: 6, maxWidth: 340 }}>
+          {t('app.db_error_desc')}
+        </AppText>
+        <AppText variant="caption" color="textMuted" align="center" style={{ marginTop: 14 }}>
+          {error}
+        </AppText>
       </View>
     );
   }
@@ -136,8 +165,11 @@ function RootApp() {
   if (!dbReady) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Logo variant="lockup" size={52} subtitle style={{ marginBottom: spacing.xl }} />
+        <Logo variant="lockup" size={52} subtitle style={{ marginBottom: 24 }} />
         <ActivityIndicator size="small" color={colors.primary} />
+        <AppText variant="bodySm" color="textMuted" align="center" style={{ marginTop: 10 }}>
+          {t('app.loading')}
+        </AppText>
       </View>
     );
   }
@@ -152,47 +184,9 @@ function RootApp() {
           animation: 'default',
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal/add-note"
-          options={{
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="modal/quick-card"
-          options={{
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen name="decks/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="note-types/index" options={{ headerShown: false }} />
-        <Stack.Screen name="note-types/[id]/fields" options={{ headerShown: false }} />
-        <Stack.Screen name="note-types/[id]/templates" options={{ headerShown: false }} />
-        <Stack.Screen name="note-types/gallery" options={{ headerShown: false }} />
-        <Stack.Screen name="study/review" options={{ headerShown: false }} />
-        <Stack.Screen name="study/learn" options={{ headerShown: false }} />
-        <Stack.Screen name="study/complete" options={{ headerShown: false }} />
-        <Stack.Screen name="import/index" options={{ headerShown: false }} />
-        <Stack.Screen name="import/history" options={{ headerShown: false }} />
-        <Stack.Screen name="quiz/play" options={{ headerShown: false }} />
-        <Stack.Screen name="quiz/results" options={{ headerShown: false }} />
-        <Stack.Screen name="planner/index" options={{ headerShown: false }} />
-        <Stack.Screen name="profile/index" options={{ headerShown: false }} />
-        <Stack.Screen name="browser/index" options={{ headerShown: false }} />
-        <Stack.Screen name="tools/index" options={{ headerShown: false }} />
-        <Stack.Screen name="tools/tags" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/backup" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/export" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/security" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/study" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/data" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/about" options={{ headerShown: false }} />
-        <Stack.Screen name="study/podcast" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="modal/add-note" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="modal/quick-card" options={{ presentation: 'modal' }} />
       </Stack>
 
       <LockOverlay
@@ -209,11 +203,21 @@ function RootApp() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
+  // Fonts resolve fast from the bundle; if they fail we fall back to system fonts.
+  const [appReady, setAppReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(Platform.OS === 'web');
+  const handleReady = React.useCallback(() => setAppReady(true), []);
+  markFontsReady(fontsLoaded && !fontError);
+  // The native splash stays up (preventAutoHideAsync) until fonts are in.
+  if (!fontsLoaded && !fontError) return null;
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#131F24' }}>
+    <View style={{ flex: 1, backgroundColor: '#0B0F19' }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <RootApp />
+          <RootApp onReady={handleReady} />
+          {!splashDone && <AnimatedSplash ready={appReady} onFinish={() => setSplashDone(true)} />}
         </ThemeProvider>
       </SafeAreaProvider>
     </View>
@@ -226,18 +230,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  errorDesc: {
-    fontSize: 14,
-    textAlign: 'center',
   },
 });

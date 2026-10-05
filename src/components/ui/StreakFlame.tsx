@@ -1,57 +1,32 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
+import { AppText } from './AppText';
+import { Row } from './Row';
 
 interface StreakFlameProps {
   streak: number;
-  style?: ViewStyle;
+  /** `plain` drops the pill background (for use inside another pill). */
+  plain?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const StreakFlame: React.FC<StreakFlameProps> = ({ streak, style }) => {
-  const { colors, typography, radius, spacing } = useTheme();
-  const rtl = isRTL();
-
+export const StreakFlame: React.FC<StreakFlameProps> = ({ streak, plain = false, style }) => {
+  const { tone } = useTheme();
+  const t = tone('orange');
   return (
-    <View
+    <Row
+      gap={4}
       style={[
-        styles.container,
-        {
-          backgroundColor: colors.warningLight,
-          borderColor: colors.warning,
-          borderRadius: radius.full,
-          flexDirection: rtl ? 'row-reverse' : 'row',
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.xs,
-          gap: 6,
-        },
+        plain ? null : { backgroundColor: t.bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
         style,
       ]}
     >
-      <Ionicons name="flame" size={17} color={colors.warning} />
-      <Text
-        style={[
-          styles.text,
-          {
-            color: colors.warningPressed,
-            fontSize: typography.sizes.sm,
-            fontWeight: typography.weights.extrabold,
-          },
-        ]}
-      >
+      <Ionicons name="flame" size={18} color={t.fg} />
+      <AppText variant="bodyStrong" weight="black" color={t.fg}>
         {streak}
-      </Text>
-    </View>
+      </AppText>
+    </Row>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    borderWidth: 1.5,
-  },
-  text: {
-    includeFontPadding: false,
-  },
-});

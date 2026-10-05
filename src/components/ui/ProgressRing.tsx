@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
-import { useTheme } from '../../theme';
+import { View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { useTheme, lighten } from '../../theme';
+import { AppText } from './AppText';
 
 interface ProgressRingProps {
   progress: number; // 0 to 1
@@ -12,6 +13,8 @@ interface ProgressRingProps {
   textColor?: string;
   label?: string;
   sublabel?: string;
+  /** Replace the centre text with custom content (icon, mascot…). */
+  children?: React.ReactNode;
 }
 
 export const ProgressRing: React.FC<ProgressRingProps> = ({
@@ -23,105 +26,68 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
   textColor,
   label,
   sublabel,
+  children,
 }) => {
-  const { colors, typography } = useTheme();
-  const clampedProgress = Math.max(0, Math.min(1, progress));
-  const activeColor = color || colors.primary;
-  const activeTrackColor = trackColor || colors.border;
-  const activeTextColor = textColor || colors.text;
-
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - clampedProgress * circumference;
+  const { colors } = useTheme();
+  const id = React.useId().replace(/:/g, '_');
+  const clamped = Math.max(0, Math.min(1, progress || 0));
+  const active = color || colors.primary;
+  const r = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * r;
 
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size}>
-        {/* Background Track */}
+        <Defs>
+          <LinearGradient id={`ring${id}`} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={lighten(active, 0.3)} />
+            <Stop offset="1" stopColor={active} />
+          </LinearGradient>
+        </Defs>
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={radius}
-          stroke={activeTrackColor}
+          r={r}
+          stroke={trackColor || colors.surface}
           strokeWidth={strokeWidth}
           fill="transparent"
         />
-        {/* Animated Progress Ring */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={activeColor}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          fill="transparent"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
+        {clamped > 0 && (
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={`url(#ring${id})`}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - clamped)}
+            strokeLinecap="round"
+            fill="transparent"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        )}
       </Svg>
 
-      <View style={styles.textContainer}>
-        {label ? (
-          <Text
-            style={[
-              styles.labelText,
-              {
-                color: activeTextColor,
-                fontSize: typography.sizes.lg,
-                fontWeight: typography.weights.bold,
-              },
-            ]}
-          >
-            {label}
-          </Text>
-        ) : (
-          <Text
-            style={[
-              styles.labelText,
-              {
-                color: activeTextColor,
-                fontSize: typography.sizes.md,
-                fontWeight: typography.weights.bold,
-              },
-            ]}
-          >
-            {Math.round(clampedProgress * 100)}%
-          </Text>
-        )}
-        {sublabel && (
-          <Text
-            style={[
-              styles.sublabelText,
-              {
-                color: colors.textSecondary,
-                fontSize: typography.sizes.xs,
-              },
-            ]}
-          >
-            {sublabel}
-          </Text>
+      <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
+        {children ?? (
+          <>
+            <AppText
+              variant="h3"
+              weight="black"
+              size={Math.max(14, Math.round(size * 0.2))}
+              color={textColor || colors.text}
+              align="center"
+            >
+              {label ?? `${Math.round(clamped * 100)}%`}
+            </AppText>
+            {!!sublabel && (
+              <AppText variant="caption" color={textColor ? textColor : 'textSecondary'} align="center">
+                {sublabel}
+              </AppText>
+            )}
+          </>
         )}
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  labelText: {
-    textAlign: 'center',
-  },
-  sublabelText: {
-    textAlign: 'center',
-    marginTop: 2,
-  },
-});

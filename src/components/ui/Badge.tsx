@@ -1,95 +1,85 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { useTheme } from '../../theme';
+import { View, ViewStyle, StyleProp } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme, alpha } from '../../theme';
+import { AppText } from './AppText';
+import { Row } from './Row';
+import { IconName } from './types';
 
-export type BadgeVariant = 'new' | 'learn' | 'due' | 'neutral' | 'accent' | 'warning';
+export type BadgeVariant =
+  | 'new'
+  | 'learn'
+  | 'due'
+  | 'neutral'
+  | 'accent'
+  | 'warning'
+  | 'error'
+  | 'primary'
+  | 'success';
 
 interface BadgeProps {
   count?: number | string;
   label?: string;
   variant?: BadgeVariant;
   size?: 'sm' | 'md';
-  style?: ViewStyle;
+  icon?: IconName;
+  /** Filled (solid) instead of tinted. */
+  solid?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
+/** Small pill with a count and/or label, colour-coded by card state. */
 export const Badge: React.FC<BadgeProps> = ({
   count,
   label,
   variant = 'neutral',
   size = 'md',
+  icon,
+  solid = false,
   style,
 }) => {
-  const { colors, typography, radius } = useTheme();
+  const { colors, tone } = useTheme();
 
-  let bgColor = colors.surface;
-  let textColor = colors.textSecondary;
-  let borderColor = colors.border;
-
-  if (variant === 'new') {
-    bgColor = `${colors.newCards}18`;
-    textColor = colors.newCards;
-    borderColor = `${colors.newCards}35`;
-  } else if (variant === 'learn') {
-    bgColor = `${colors.learningCards}18`;
-    textColor = colors.learningCards;
-    borderColor = `${colors.learningCards}35`;
-  } else if (variant === 'due') {
-    bgColor = `${colors.dueCards}18`;
-    textColor = colors.dueCards;
-    borderColor = `${colors.dueCards}35`;
-  } else if (variant === 'accent') {
-    bgColor = `${colors.accent}18`;
-    textColor = colors.accent;
-    borderColor = `${colors.accent}35`;
-  } else if (variant === 'warning') {
-    bgColor = `${colors.warning}18`;
-    textColor = colors.warning;
-    borderColor = `${colors.warning}35`;
-  }
-
-  const isSmall = size === 'sm';
-  const paddingH = isSmall ? 8 : 12;
-  const paddingV = isSmall ? 2 : 4;
-  const fontSize = isSmall ? typography.sizes.xs : 13;
+  const hue: Record<BadgeVariant, string> = {
+    new: colors.newCards,
+    learn: colors.learningCards,
+    due: colors.dueCards,
+    neutral: colors.textSecondary,
+    accent: colors.accent,
+    warning: colors.warning,
+    error: colors.error,
+    primary: colors.primary,
+    success: tone('green').fg,
+  };
+  const c = hue[variant];
+  const small = size === 'sm';
+  const text = label ? `${count !== undefined ? `${count} ` : ''}${label}` : String(count ?? '');
 
   return (
     <View
       style={[
-        styles.badge,
         {
-          backgroundColor: bgColor,
-          borderColor,
-          borderWidth: 1,
-          borderRadius: radius.full,
-          paddingHorizontal: paddingH,
-          paddingVertical: paddingV,
+          alignSelf: 'flex-start',
+          borderRadius: 999,
+          paddingHorizontal: small ? 8 : 11,
+          paddingVertical: small ? 2 : 4,
+          backgroundColor: solid ? c : variant === 'neutral' ? colors.surface : alpha(c, 0.13),
         },
         style,
       ]}
     >
-      <Text
-        style={[
-          styles.text,
-          {
-            color: textColor,
-            fontSize,
-            fontWeight: typography.weights.bold,
-          },
-        ]}
-      >
-        {label ? `${count !== undefined ? count + ' ' : ''}${label}` : count}
-      </Text>
+      <Row gap={4}>
+        {icon && <Ionicons name={icon} size={small ? 11 : 13} color={solid ? '#FFFFFF' : c} />}
+        <AppText
+          variant="caption"
+          weight="extrabold"
+          size={small ? 11 : 12}
+          color={solid ? '#FFFFFF' : c}
+          align="center"
+        >
+          {text}
+        </AppText>
+      </Row>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    textAlign: 'center',
-  },
-});

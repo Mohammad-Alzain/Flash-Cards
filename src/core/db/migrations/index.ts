@@ -1,6 +1,7 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { up as migration001 } from './001_initial_schema';
 import { up as migration002 } from './002_ai_and_quiz_extended';
+import { up as migration003 } from './003_reminder_calendar';
 
 export interface Migration {
   version: number;
@@ -10,6 +11,7 @@ export interface Migration {
 export const migrations: Migration[] = [
   { version: 1, up: migration001 },
   { version: 2, up: migration002 },
+  { version: 3, up: migration003 },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

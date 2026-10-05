@@ -32,7 +32,7 @@ export const FlashCardFlip: React.FC<FlashCardFlipProps> = ({
   onAudioPlay,
   style,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, shadow } = useTheme();
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -80,6 +80,7 @@ export const FlashCardFlip: React.FC<FlashCardFlipProps> = ({
             borderColor: colors.border,
             borderBottomColor: colors.borderDarker,
           },
+          shadow(2),
           frontAnimatedStyle,
         ]}
         pointerEvents={isFlipped ? 'none' : 'auto'}
@@ -104,6 +105,7 @@ export const FlashCardFlip: React.FC<FlashCardFlipProps> = ({
             borderColor: colors.border,
             borderBottomColor: colors.borderDarker,
           },
+          shadow(2),
           backAnimatedStyle,
         ]}
         pointerEvents={isFlipped ? 'auto' : 'none'}
@@ -132,9 +134,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
     height: '100%',
-    borderRadius: 20,
-    borderWidth: 2,
-    borderBottomWidth: 5,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderBottomWidth: 4,
     overflow: 'hidden',
     backfaceVisibility: 'hidden',
   },

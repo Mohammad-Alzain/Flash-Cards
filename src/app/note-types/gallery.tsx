@@ -1,39 +1,29 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Modal,
-} from 'react-native';
-import { CustomAlert } from '../../components/common/CustomDialog';
+import { View, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
-import { Header, Card, Button, Badge } from '../../components/ui';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme, toneForKey } from '../../theme';
+import { CustomAlert } from '../../components/common/CustomDialog';
+import { Screen, Header, Card, Row, AppText, Badge, Button, IconTile, Chip } from '../../components/ui';
 import { CardRenderer } from '../../components/card/CardRenderer';
-import {
-  TEMPLATE_GALLERY_PRESETS,
-  TemplatePreset,
-} from '../../core/render/templateGallery';
+import { TEMPLATE_GALLERY_PRESETS, TemplatePreset } from '../../core/render/templateGallery';
 import { renderCard } from '../../core/render/templateEngine';
 import { noteRepository } from '../../core/db/repositories/noteRepository';
 
+/** Cloze sample kept out of i18n because i18next would treat {{…}} as interpolation. */
+const CLOZE_SAMPLE = 'Cairo is the capital of {{c1::Egypt}} and largest city in the Arab world.';
+
 export default function TemplateGalleryScreen() {
-  const { colors, typography, spacing } = useTheme();
+  const { colors } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
-  const rtl = isRTL();
+  const [preview, setPreview] = useState<TemplatePreset | null>(null);
+  const [side, setSide] = useState<'front' | 'back'>('front');
+  const [installing, setInstalling] = useState<string | null>(null);
 
-  const [selectedPreset, setSelectedPreset] = useState<TemplatePreset | null>(null);
-  const [previewSide, setPreviewSide] = useState<'front' | 'back'>('front');
-  const [installing, setInstalling] = useState(false);
-
-  const handleUsePreset = async (preset: TemplatePreset) => {
-    setInstalling(true);
+  const usePreset = async (preset: TemplatePreset) => {
+    setInstalling(preset.id);
     try {
       const created = await noteRepository.createNoteType({
         name: preset.name.replace(/^\d+\.\s*/, ''),
@@ -42,197 +32,101 @@ export default function TemplateGalleryScreen() {
         css: preset.css,
         isCloze: preset.isCloze,
       });
-
-      CustomAlert.alert(
-        t('common.done'),
-        `Created note type "${created.name}" from preset!`,
-        [
-          {
-            text: t('common.done'),
-            onPress: () => router.push(`/note-types/${created.id}/templates`),
-          },
-        ]
-      );
+      CustomAlert.alert(t('common.done'), t('note_types.created_from_preset', { name: created.name }), [
+        { text: t('common.done'), onPress: () => router.push(`/note-types/${created.id}/templates`) },
+      ]);
     } catch (err: any) {
       CustomAlert.alert(t('common.error'), err.message);
     } finally {
-      setInstalling(false);
+      setInstalling(null);
     }
   };
 
-  // Preview data
-  let previewRendered = null;
-  if (selectedPreset) {
-    const sampleFields: Record<string, string> = {};
-    selectedPreset.fields.forEach((f) => {
-      if (f.name === 'Text') {
-        sampleFields['Text'] = 'Cairo is the capital of {{c1::Egypt}} and largest city in the Arab world.';
-      } else if (f.rtl) {
-        sampleFields[f.name] = 'مفردات ونصوص باللغة العربية';
-      } else {
-        sampleFields[f.name] = `Sample ${f.name} value`;
-      }
-    });
-
-    const activeTpl = selectedPreset.templates[0];
-    previewRendered = renderCard({
-      frontTemplate: activeTpl.front_html,
-      backTemplate: activeTpl.back_html,
-      fields: sampleFields,
-      css: selectedPreset.css,
-      templateOrd: 0,
-    });
-  }
+  const rendered = preview
+    ? renderCard({
+        frontTemplate: preview.templates[0].front_html,
+        backTemplate: preview.templates[0].back_html,
+        fields: Object.fromEntries(
+          preview.fields.map((f) => [
+            f.name,
+            f.name === 'Text' ? CLOZE_SAMPLE : f.rtl ? t('note_types.sample_arabic') : t('note_types.sample_value', { name: f.name }),
+          ])
+        ),
+        css: preview.css,
+        templateOrd: 0,
+      })
+    : null;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <Header
-        title={t('note_types.gallery_button')}
-        subtitle={rtl ? 'قوالب جاهزة مدمجة' : 'Bundled offline presets'}
-        onBack={() => router.back()}
-      />
-
-      <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
-        {TEMPLATE_GALLERY_PRESETS.map((preset) => (
-          <Card key={preset.id} style={[styles.presetCard, { marginBottom: spacing.md }]}>
-            <View style={[styles.titleRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-              <Text
-                style={[
-                  styles.presetName,
-                  {
-                    color: colors.text,
-                    fontSize: typography.sizes.md,
-                    fontWeight: typography.weights.bold,
-                    textAlign: rtl ? 'right' : 'left',
-                    flex: 1,
-                  },
-                ]}
-              >
-                {preset.name}
-              </Text>
-              {preset.isCloze && (
-                <Badge count="Cloze" variant="accent" size="sm" />
-              )}
-            </View>
-
-            <Text
-              style={[
-                styles.presetDesc,
-                {
-                  color: colors.textSecondary,
-                  fontSize: typography.sizes.xs,
-                  textAlign: rtl ? 'right' : 'left',
-                  marginTop: 4,
-                  lineHeight: 18,
-                },
-              ]}
-            >
-              {preset.description}
-            </Text>
-
-            <View style={[styles.tagsRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginTop: spacing.sm }]}>
-              <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-                {rtl ? 'الحقول:' : 'Fields:'} {preset.fields.map((f) => f.name).join(', ')}
-              </Text>
-            </View>
-
-            <View style={[styles.btnRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8, marginTop: spacing.md }]}>
-              <Button
-                title={rtl ? 'معاينة' : 'Preview'}
-                icon={<Ionicons name="eye-outline" size={16} color={colors.primary} />}
-                variant="ghost"
-                size="sm"
-                onPress={() => {
-                  setSelectedPreset(preset);
-                  setPreviewSide('front');
-                }}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title={rtl ? 'استخدام القالب' : 'Use Preset'}
-                variant="primary"
-                size="sm"
-                loading={installing}
-                onPress={() => handleUsePreset(preset)}
-                style={{ flex: 1 }}
-              />
-            </View>
-          </Card>
-        ))}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-
-      {/* Preset Preview Modal */}
-      <Modal
-        visible={!!selectedPreset}
-        animationType="slide"
-        onRequestClose={() => setSelectedPreset(null)}
-      >
-        <SafeAreaView style={[styles.modalSafe, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-          <Header
-            title={selectedPreset?.name || (rtl ? 'معاينة' : 'Preview')}
-            subtitle={previewSide.toUpperCase()}
-            onBack={() => setSelectedPreset(null)}
-            rightElement={
-              <Button
-                title={previewSide === 'front' ? (rtl ? 'إظهار الخلف' : 'Show Back') : (rtl ? 'إظهار الأمام' : 'Show Front')}
-                variant="ghost"
-                size="sm"
-                onPress={() => setPreviewSide(previewSide === 'front' ? 'back' : 'front')}
-              />
-            }
-          />
-
-          <View style={styles.previewContainer}>
-            {selectedPreset && previewRendered && (
-              <CardRenderer
-                htmlContent={previewSide === 'front' ? previewRendered.frontHtml : previewRendered.backHtml}
-                css={selectedPreset.css}
-                templateOrd={0}
-              />
+    <Screen
+      decor
+      header={<Header title={t('note_types.gallery_button')} subtitle={t('note_types.gallery_subtitle')} icon="images" iconTone="pink" onBack={() => router.back()} />}
+      overlay={
+        <Modal visible={!!preview} animationType="slide" onRequestClose={() => setPreview(null)}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right', 'bottom']}>
+            <Header
+              title={preview?.name ?? ''}
+              subtitle={side === 'front' ? t('note_types.tab_front') : t('note_types.tab_back')}
+              icon="eye"
+              iconTone="sky"
+              onBack={() => setPreview(null)}
+              rightElement={
+                <Chip
+                  label={side === 'front' ? t('note_types.show_back') : t('note_types.show_front')}
+                  icon="swap-horizontal"
+                  onPress={() => setSide(side === 'front' ? 'back' : 'front')}
+                />
+              }
+            />
+            {preview && rendered && (
+              <>
+                <Card padding={0} style={{ flex: 1, margin: 16, overflow: 'hidden' }}>
+                  <CardRenderer htmlContent={side === 'front' ? rendered.frontHtml : rendered.backHtml} css={preview.css} templateOrd={0} />
+                </Card>
+                <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                  <Button title={t('note_types.use_preset')} icon="download" size="lg" fullWidth loading={installing === preview.id} onPress={() => usePreset(preview)} />
+                </View>
+              </>
             )}
-          </View>
-
-          {selectedPreset && (
-            <View style={{ padding: 16 }}>
-              <Button
-                title={rtl ? `تطبيق "${selectedPreset.name}"` : `Apply "${selectedPreset.name}"`}
-                variant="primary"
-                size="lg"
-                onPress={() => {
-                  const p = selectedPreset;
-                  setSelectedPreset(null);
-                  handleUsePreset(p);
-                }}
-              />
+          </SafeAreaView>
+        </Modal>
+      }
+    >
+      {TEMPLATE_GALLERY_PRESETS.map((preset) => (
+        <Card key={preset.id} style={{ marginBottom: 12 }}>
+          <Row gap={12} align="flex-start">
+            <IconTile icon={preset.isCloze ? 'code-slash' : 'color-palette'} tone={toneForKey(preset.id)} size={46} variant="solid" />
+            <View style={{ flex: 1 }}>
+              <Row gap={6}>
+                <AppText variant="title" weight="extrabold" style={{ flex: 1 }}>
+                  {preset.name}
+                </AppText>
+                {preset.isCloze && <Badge size="sm" variant="accent" label={t('note_types.cloze')} />}
+              </Row>
+              <AppText variant="caption" color="textSecondary" style={{ marginTop: 2 }}>
+                {preset.description}
+              </AppText>
+              <AppText variant="caption" color="textMuted" style={{ marginTop: 6 }}>
+                {t('note_types.fields_list', { list: preset.fields.map((f) => f.name).join(', ') })}
+              </AppText>
             </View>
-          )}
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
+          </Row>
+          <Row gap={8} style={{ marginTop: 12 }}>
+            <Button
+              title={t('note_types.preview')}
+              icon="eye"
+              variant="ghost"
+              size="sm"
+              onPress={() => {
+                setPreview(preset);
+                setSide('front');
+              }}
+              style={{ flex: 1 }}
+            />
+            <Button title={t('note_types.use_preset')} icon="download" size="sm" loading={installing === preset.id} onPress={() => usePreset(preset)} style={{ flex: 1 }} />
+          </Row>
+        </Card>
+      ))}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  content: {},
-  presetCard: {},
-  titleRow: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  presetName: {},
-  presetDesc: {},
-  tagsRow: {},
-  btnRow: {},
-  modalSafe: {
-    flex: 1,
-  },
-  previewContainer: {
-    flex: 1,
-    padding: 16,
-  },
-});

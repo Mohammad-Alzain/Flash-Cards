@@ -1,9 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
+import { View, ViewStyle, StyleProp } from 'react-native';
+import { useTheme, useDirection, ToneName } from '../../theme';
 import { Logo } from '../brand/Logo';
+import { AppText } from './AppText';
+import { Row } from './Row';
+import { IconButton } from './IconButton';
+import { IconTile } from './IconTile';
+import { IconName } from './types';
 
 interface HeaderProps {
   title: string;
@@ -11,144 +14,61 @@ interface HeaderProps {
   logo?: boolean;
   onBack?: () => void;
   rightElement?: React.ReactNode;
-  style?: ViewStyle;
+  /** Decorative icon tile beside the title. */
+  icon?: IconName;
+  iconTone?: ToneName;
+  /** Large title layout for tab roots. */
+  large?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
+/** Screen header: back button, optional icon tile, title/subtitle and trailing actions. */
 export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
   logo = false,
   onBack,
   rightElement,
+  icon,
+  iconTone = 'indigo',
+  large = false,
   style,
 }) => {
-  const { colors, typography, spacing } = useTheme();
-  const rtl = isRTL();
+  const { colors } = useTheme();
+  const dir = useDirection();
 
   return (
-    <View
+    <Row
+      gap={12}
       style={[
-        styles.container,
         {
           backgroundColor: colors.background,
-          borderBottomColor: colors.border,
-          flexDirection: rtl ? 'row-reverse' : 'row',
-          paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.md,
+          paddingHorizontal: 16,
+          paddingTop: large ? 10 : 8,
+          paddingBottom: large ? 8 : 8,
+          minHeight: 60,
         },
         style,
       ]}
     >
-      <View style={[styles.leftRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-        {onBack && (
-          <Pressable
-            onPress={onBack}
-            style={[
-              styles.backBtn,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                marginRight: rtl ? 0 : 12,
-                marginLeft: rtl ? 12 : 0,
-              },
-            ]}
-            hitSlop={8}
-          >
-            <Ionicons
-              name={rtl ? 'chevron-forward' : 'chevron-back'}
-              size={22}
-              color={colors.text}
-            />
-          </Pressable>
+      {onBack && (
+        <IconButton icon={dir.backIcon} onPress={onBack} accessibilityLabel="Back" size={40} />
+      )}
+      {logo && <Logo variant="mark" size={28} />}
+      {icon && !logo && <IconTile icon={icon} tone={iconTone} size={large ? 42 : 36} variant="soft" />}
+
+      <View style={{ flex: 1 }}>
+        <AppText variant={large ? 'h1' : 'h3'} weight={large ? 'black' : 'extrabold'} numberOfLines={1}>
+          {title}
+        </AppText>
+        {!!subtitle && (
+          <AppText variant="bodySm" color="textSecondary" numberOfLines={1}>
+            {subtitle}
+          </AppText>
         )}
-        {logo && (
-          <Logo
-            variant="mark"
-            size={24}
-            style={{
-              marginRight: rtl ? 0 : 8,
-              marginLeft: rtl ? 8 : 0,
-            }}
-          />
-        )}
-        <View style={styles.titleColumn}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: colors.text,
-                fontSize: typography.sizes.xl,
-                fontWeight: typography.weights.bold,
-                textAlign: rtl ? 'right' : 'left',
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {title}
-          </Text>
-          {subtitle && (
-            <Text
-              style={[
-                styles.subtitle,
-                {
-                  color: colors.textSecondary,
-                  fontSize: typography.sizes.xs,
-                  textAlign: rtl ? 'right' : 'left',
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {subtitle}
-            </Text>
-          )}
-        </View>
       </View>
 
-      {rightElement && (
-        <View
-          style={[
-            styles.rightElement,
-            {
-              marginLeft: rtl ? 0 : 12,
-              marginRight: rtl ? 12 : 0,
-            },
-          ]}
-        >
-          {rightElement}
-        </View>
-      )}
-    </View>
+      {rightElement && <Row gap={8}>{rightElement}</Row>}
+    </Row>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    minHeight: 56,
-  },
-  leftRow: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleColumn: {
-    flex: 1,
-  },
-  title: {},
-  subtitle: {
-    marginTop: 2,
-  },
-  rightElement: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-});

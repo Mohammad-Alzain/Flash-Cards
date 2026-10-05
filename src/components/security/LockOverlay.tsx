@@ -1,267 +1,161 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme } from '../../theme';
 import { AppLockManager } from '../../core/security/appLock';
-import { Logo } from '../brand/Logo';
+import { AppText, Row, PressableScale } from '../ui';
+import { Illustration } from '../illustrations';
 
-interface LockOverlayProps {
-  visible: boolean;
-  onUnlocked: () => void;
-}
+const MIN_PIN = 4;
+const MAX_PIN = 6;
+const KEYS = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['', '0', 'delete'],
+];
 
-export const LockOverlay: React.FC<LockOverlayProps> = ({ visible, onUnlocked }) => {
+const tap = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+/** Full-screen PIN pad shown while the app is locked. */
+export const LockOverlay: React.FC<{ visible: boolean; onUnlocked: () => void }> = ({ visible, onUnlocked }) => {
   const { t } = useTranslation();
-  const theme = useTheme();
-
+  const { colors, shadow } = useTheme();
   const [pin, setPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [lockoutSec, setLockoutSec] = useState(0);
 
+  // Count down an active brute-force lockout.
   useEffect(() => {
-    let timer: any = null;
-    if (lockoutSec > 0) {
-      timer = setInterval(() => {
-        setLockoutSec(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    if (lockoutSec <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSec((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
   }, [lockoutSec]);
 
-  const handlePressDigit = async (digit: string) => {
-    if (lockoutSec > 0) return;
-    if (pin.length >= 6) return;
-
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {}
-
-    const newPin = pin + digit;
-    setPin(newPin);
+  const pressDigit = async (digit: string) => {
+    if (lockoutSec > 0 || pin.length >= MAX_PIN) return;
+    tap();
+    const next = pin + digit;
+    setPin(next);
     setErrorMsg('');
+    if (next.length < MIN_PIN) return;
 
-    if (newPin.length >= 4) {
-      // Auto verify at 4 digits, or if user reaches 6
-      const res = await AppLockManager.verifyPin(newPin);
-      if (res.success) {
-        try {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch {}
-        setPin('');
-        setErrorMsg('');
-        onUnlocked();
-      } else if (res.lockedOut) {
-        try {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        } catch {}
-        setLockoutSec(res.remainingSec);
-        setPin('');
-        setErrorMsg(t('security.lockedOut', { seconds: res.remainingSec }));
-      } else if (newPin.length === 6) {
-        try {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        } catch {}
-        setPin('');
-        setErrorMsg(t('security.wrongPin'));
-      }
+    // Verify from 4 digits on; a wrong 6-digit entry resets.
+    const res = await AppLockManager.verifyPin(next);
+    if (res.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setPin('');
+      setErrorMsg('');
+      onUnlocked();
+    } else if (res.lockedOut) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      setLockoutSec(res.remainingSec);
+      setPin('');
+      setErrorMsg(t('security.lockedOut', { seconds: res.remainingSec }));
+    } else if (next.length === MAX_PIN) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      setPin('');
+      setErrorMsg(t('security.wrongPin'));
     }
   };
 
-  const handleDelete = () => {
-    if (pin.length > 0) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } catch {}
-      setPin(pin.slice(0, -1));
-      setErrorMsg('');
-    }
+  const del = () => {
+    if (!pin.length) return;
+    tap();
+    setPin(pin.slice(0, -1));
+    setErrorMsg('');
   };
 
   if (!visible) return null;
 
-  return (
-    <Modal visible={visible} animationType="fade" transparent={false}>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.header}>
-          <Logo variant="mark" size={64} style={{ marginBottom: 16 }} />
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            {t('security.appLocked')}
-          </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-            {t('security.enterPin')}
-          </Text>
-        </View>
+  const message = lockoutSec > 0 ? t('security.lockedOut', { seconds: lockoutSec }) : errorMsg;
+  const dots = Math.max(MIN_PIN, pin.length);
 
-        {/* PIN Indicators */}
-        <View style={styles.dotsRow}>
-          {[0, 1, 2, 3].map(idx => {
-            const isFilled = idx < pin.length;
+  return (
+    <Modal visible={visible} animationType="fade" transparent={false} statusBarTranslucent>
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+        <Illustration name="locked" size={190} />
+        <AppText variant="h2" align="center">
+          {t('security.appLocked')}
+        </AppText>
+        <AppText variant="body" color="textSecondary" align="center" style={{ marginTop: 4 }}>
+          {t('security.enterPin')}
+        </AppText>
+
+        <Row gap={14} style={{ marginVertical: 24 }}>
+          {Array.from({ length: dots }).map((_, i) => {
+            const filled = i < pin.length;
             return (
               <View
-                key={idx}
-                style={[
-                  styles.dot,
-                  {
-                    borderColor: theme.colors.primary,
-                    backgroundColor: isFilled ? theme.colors.primary : 'transparent',
-                  },
-                ]}
+                key={i}
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  borderWidth: 2,
+                  borderColor: message ? colors.error : colors.primary,
+                  backgroundColor: filled ? (message ? colors.error : colors.primary) : 'transparent',
+                  transform: [{ scale: filled ? 1.1 : 1 }],
+                }}
               />
             );
           })}
-        </View>
+        </Row>
 
-        {/* Error or Lockout Message */}
-        {lockoutSec > 0 ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {t('security.lockedOut', { seconds: lockoutSec })}
-          </Text>
-        ) : errorMsg ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {errorMsg}
-          </Text>
-        ) : null}
+        <AppText variant="bodySm" weight="bold" color="error" align="center" style={{ minHeight: 22, marginBottom: 12 }}>
+          {message}
+        </AppText>
 
-        {/* Numeric Keypad */}
-        <View style={styles.keypad}>
-          {[
-            ['1', '2', '3'],
-            ['4', '5', '6'],
-            ['7', '8', '9'],
-            ['', '0', 'delete'],
-          ].map((row, rIdx) => (
-            <View key={rIdx} style={styles.row}>
-              {row.map((item, cIdx) => {
-                if (item === '') {
-                  return <View key={cIdx} style={styles.keyEmpty} />;
-                }
-                if (item === 'delete') {
-                  return (
-                    <TouchableOpacity
-                      key={cIdx}
-                      style={[
-                        styles.key,
-                        {
-                          backgroundColor: theme.colors.surface,
-                          borderColor: theme.colors.border,
-                          borderBottomColor: theme.colors.borderDarker,
-                        },
-                      ]}
-                      onPress={handleDelete}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.keyText, { color: theme.colors.text }]}>⌫</Text>
-                    </TouchableOpacity>
-                  );
-                }
+        <View style={{ gap: 14 }}>
+          {KEYS.map((row, r) => (
+            <Row key={r} gap={18}>
+              {row.map((key, c) => {
+                if (!key) return <View key={c} style={{ width: 74, height: 74 }} />;
+                const isDelete = key === 'delete';
                 return (
-                  <TouchableOpacity
-                    key={cIdx}
+                  <PressableScale
+                    key={c}
+                    onPress={() => (isDelete ? del() : pressDigit(key))}
+                    activeScale={0.9}
+                    accessibilityLabel={isDelete ? t('common.delete') : key}
                     style={[
-                      styles.key,
                       {
-                        backgroundColor: theme.colors.surface,
-                        borderColor: theme.colors.border,
-                        borderBottomColor: theme.colors.borderDarker,
+                        width: 74,
+                        height: 74,
+                        borderRadius: 37,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: isDelete ? 'transparent' : colors.surfaceRaised,
+                        borderWidth: isDelete ? 0 : 1,
+                        borderColor: colors.border,
                       },
+                      isDelete ? null : shadow(1),
                     ]}
-                    onPress={() => handlePressDigit(item)}
-                    activeOpacity={0.7}
                   >
-                    <Text style={[styles.keyText, { color: theme.colors.text }]}>{item}</Text>
-                  </TouchableOpacity>
+                    {isDelete ? (
+                      <Ionicons name="backspace" size={28} color={colors.textSecondary} />
+                    ) : (
+                      <AppText size={28} weight="extrabold" align="center">
+                        {key}
+                      </AppText>
+                    )}
+                  </PressableScale>
                 );
               })}
-            </View>
+            </Row>
           ))}
         </View>
       </View>
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  lockIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 20,
-  },
-  dot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-  },
-  errorText: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  keypad: {
-    width: '100%',
-    maxWidth: 320,
-    gap: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  key: {
-    flex: 1,
-    height: 64,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderBottomWidth: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  keyEmpty: {
-    flex: 1,
-    height: 64,
-  },
-  keyText: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-});

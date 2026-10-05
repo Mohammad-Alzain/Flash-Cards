@@ -1,19 +1,10 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  StyleSheet,
-  Dimensions,
-  Animated,
-} from 'react-native';
+import { View, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../theme';
-import { brandColors } from '../../theme/brand';
-import { isRTL } from '../../i18n';
-import { ProgressRing } from '../ui/ProgressRing';
-import { ProgressBar } from '../ui/ProgressBar';
-import { VaultBackupIllustration, SessionCompleteIllustration } from '../brand';
+import { useTranslation } from 'react-i18next';
+import { useTheme, alpha } from '../../theme';
+import { AppText, Row, Card, ProgressRing, ProgressBar, IconName } from '../ui';
+import { Mascot } from '../illustrations';
 import { BackupProgress, BackupStage } from '../../core/backup/backupService';
 
 interface BackupProgressModalProps {
@@ -21,361 +12,98 @@ interface BackupProgressModalProps {
   progress: BackupProgress | null;
 }
 
-interface StepItem {
-  id: BackupStage;
-  labelAr: string;
-  labelEn: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}
-
-const STEPS: StepItem[] = [
-  { id: 'database', labelAr: 'البيانات', labelEn: 'Database', icon: 'server-outline' },
-  { id: 'media', labelAr: 'الوسائط', labelEn: 'Media', icon: 'images-outline' },
-  { id: 'compressing', labelAr: 'الضغط', labelEn: 'Compress', icon: 'archive-outline' },
-  { id: 'saving', labelAr: 'الحفظ', labelEn: 'Vault', icon: 'shield-checkmark-outline' },
+const ORDER: BackupStage[] = ['preparing', 'database', 'media', 'compressing', 'saving', 'complete'];
+const STEPS: { id: BackupStage; icon: IconName }[] = [
+  { id: 'database', icon: 'server' },
+  { id: 'media', icon: 'images' },
+  { id: 'compressing', icon: 'archive' },
+  { id: 'saving', icon: 'shield-checkmark' },
 ];
 
-export const BackupProgressModal: React.FC<BackupProgressModalProps> = ({
-  visible,
-  progress,
-}) => {
-  const { colors, isDark } = useTheme();
-  const rtl = isRTL();
-
+/** Progress ring + stepper shown while a backup is being written. */
+export const BackupProgressModal: React.FC<BackupProgressModalProps> = ({ visible, progress }) => {
+  const { colors, tone, shape } = useTheme();
+  const { t } = useTranslation();
   if (!visible) return null;
 
-  const currentPercent = progress?.percent ?? 0;
-  const currentStage = progress?.stage ?? 'preparing';
-  const isDone = currentPercent >= 100 || currentStage === 'complete';
+  const percent = progress?.percent ?? 0;
+  const stage = progress?.stage ?? 'preparing';
+  const done = percent >= 100 || stage === 'complete';
+  const green = tone('green').fg;
 
-  const getStepStatus = (stepId: BackupStage): 'done' | 'active' | 'pending' => {
-    const order: BackupStage[] = ['preparing', 'database', 'media', 'compressing', 'saving', 'complete'];
-    const currentIndex = order.indexOf(currentStage);
-    const stepIndex = order.indexOf(stepId);
-
-    if (isDone || currentIndex > stepIndex) return 'done';
-    if (currentIndex === stepIndex) return 'active';
-    return 'pending';
+  const statusOf = (id: BackupStage): 'done' | 'active' | 'pending' => {
+    const current = ORDER.indexOf(stage);
+    const step = ORDER.indexOf(id);
+    if (done || current > step) return 'done';
+    return current === step ? 'active' : 'pending';
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <View style={styles.backdrop}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: isDark ? '#0B0F19' : '#FFFFFF',
-              borderColor: isDark ? '#1E293B' : '#E0E7FF',
-            },
-          ]}
-        >
-          {/* Header Title */}
-          <View style={styles.header}>
-            <Text
-              style={[
-                styles.title,
-                { color: isDark ? '#F8FAFC' : '#0F172A', textAlign: 'center' },
-              ]}
-            >
-              {rtl ? 'جاري تأمين النسخة الاحتياطية' : 'Creating Secure Backup'}
-            </Text>
-            <Text
-              style={[
-                styles.subtitle,
-                { color: isDark ? '#94A3B8' : '#64748B', textAlign: 'center' },
-              ]}
-            >
-              {rtl
-                ? 'حفظ مشفر محلي بالكامل دون اتصال بالإنترنت'
-                : '100% Offline Local Encrypted Vault'}
-            </Text>
-          </View>
+      <View style={{ flex: 1, backgroundColor: 'rgba(8,10,25,0.6)', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <Card style={{ width: '100%', maxWidth: 380, borderRadius: shape.sheet, alignItems: 'center', paddingVertical: 22 }}>
+          <AppText variant="h3" align="center">
+            {t('backup_progress.title')}
+          </AppText>
+          <AppText variant="caption" color="textMuted" align="center" style={{ marginBottom: 12 }}>
+            {t('backup_progress.subtitle')}
+          </AppText>
 
-          {/* Artistic Centerpiece: ProgressRing + Illustration */}
-          <View style={styles.visualContainer}>
-            <View style={styles.ringWrapper}>
-              <ProgressRing
-                progress={currentPercent / 100}
-                size={164}
-                strokeWidth={7}
-                color={isDone ? brandColors.success : brandColors.accent}
-                trackColor={isDark ? '#1E293B' : '#EEF2FF'}
-                label=""
-              />
-              <View style={styles.illustrationOverlay}>
-                {isDone ? (
-                  <SessionCompleteIllustration size={105} />
-                ) : (
-                  <VaultBackupIllustration size={95} />
-                )}
-              </View>
-            </View>
+          <ProgressRing progress={percent / 100} size={170} strokeWidth={10} color={done ? green : colors.primary}>
+            <Mascot size={96} expression={done ? 'excited' : 'happy'} pose={done ? 'cheer' : 'idle'} />
+          </ProgressRing>
 
-            {/* Glowing Percent Badge */}
-            <View
-              style={[
-                styles.percentBadge,
-                {
-                  backgroundColor: isDone ? '#10B98115' : brandColors.primaryLight,
-                  borderColor: isDone ? brandColors.success : brandColors.primary,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.percentText,
-                  { color: isDone ? brandColors.success : brandColors.primary },
-                ]}
-              >
-                {currentPercent}%
-              </Text>
-            </View>
-          </View>
+          <AppText variant="h2" color={done ? green : 'primary'} align="center" style={{ marginTop: 8 }}>
+            {percent}%
+          </AppText>
+          <AppText variant="bodyStrong" align="center" style={{ marginTop: 4 }}>
+            {progress?.message || t('backup_progress.preparing')}
+          </AppText>
+          {!!progress?.detail && (
+            <AppText variant="caption" color="textSecondary" align="center">
+              {progress.detail}
+            </AppText>
+          )}
 
-          {/* Stage Headline & Detail */}
-          <View style={styles.messageBox}>
-            <Text
-              style={[
-                styles.mainMessage,
-                { color: isDark ? '#F1F5F9' : '#1E293B', textAlign: 'center' },
-              ]}
-            >
-              {progress?.message || (rtl ? 'جاري تجهيز النسخة...' : 'Preparing backup...')}
-            </Text>
-            {progress?.detail && (
-              <Text
-                style={[
-                  styles.detailMessage,
-                  { color: isDark ? '#94A3B8' : '#64748B', textAlign: 'center' },
-                ]}
-              >
-                {progress.detail}
-              </Text>
-            )}
-          </View>
-
-          {/* Stepper Milestones */}
-          <View style={[styles.stepperRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            {STEPS.map((step, idx) => {
-              const status = getStepStatus(step.id);
-              const isStepDone = status === 'done';
-              const isStepActive = status === 'active';
-
+          <Row justify="space-between" style={{ alignSelf: 'stretch', marginTop: 16, marginBottom: 12 }}>
+            {STEPS.map((s) => {
+              const st = statusOf(s.id);
+              const color = st === 'done' ? green : st === 'active' ? colors.primary : colors.textMuted;
               return (
-                <View key={step.id} style={styles.stepItem}>
+                <View key={s.id} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
                   <View
-                    style={[
-                      styles.stepCircle,
-                      isStepDone && {
-                        backgroundColor: brandColors.success,
-                        borderColor: brandColors.success,
-                      },
-                      isStepActive && {
-                        backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF',
-                        borderColor: brandColors.primary,
-                        borderWidth: 2,
-                      },
-                      status === 'pending' && {
-                        backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
-                        borderColor: isDark ? '#334155' : '#E2E8F0',
-                      },
-                    ]}
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 17,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: st === 'done' ? green : alpha(color, 0.14),
+                      borderWidth: st === 'active' ? 2 : 0,
+                      borderColor: colors.primary,
+                    }}
                   >
-                    {isStepDone ? (
-                      <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                    ) : (
-                      <Ionicons
-                        name={step.icon}
-                        size={14}
-                        color={isStepActive ? brandColors.primary : (isDark ? '#64748B' : '#94A3B8')}
-                      />
-                    )}
+                    <Ionicons name={st === 'done' ? 'checkmark' : s.icon} size={16} color={st === 'done' ? '#FFFFFF' : color} />
                   </View>
-                  <Text
-                    style={[
-                      styles.stepLabel,
-                      {
-                        color: isStepDone
-                          ? (isDark ? '#E2E8F0' : '#334155')
-                          : isStepActive
-                          ? brandColors.primary
-                          : (isDark ? '#64748B' : '#94A3B8'),
-                        fontWeight: isStepActive || isStepDone ? '700' : '500',
-                      },
-                    ]}
-                  >
-                    {rtl ? step.labelAr : step.labelEn}
-                  </Text>
+                  <AppText variant="caption" size={11} weight={st === 'pending' ? 'semibold' : 'extrabold'} color={color} align="center">
+                    {t(`backup_progress.step_${s.id}`)}
+                  </AppText>
                 </View>
               );
             })}
-          </View>
+          </Row>
+          <ProgressBar progress={percent / 100} height={8} color={done ? green : colors.primary} />
 
-          {/* Linear Glowing Progress Track */}
-          <View style={styles.progressTrackWrapper}>
-            <ProgressBar
-              progress={currentPercent / 100}
-              height={7}
-              color={isDone ? brandColors.success : brandColors.primary}
-            />
-          </View>
-
-          {/* Data Counts Pill */}
           {(progress?.cardCount !== undefined || progress?.mediaCount !== undefined) && (
-            <View
-              style={[
-                styles.countsPill,
-                {
-                  backgroundColor: isDark ? '#111827' : '#F8FAFC',
-                  borderColor: isDark ? '#1E293B' : '#E2E8F0',
-                },
-              ]}
-            >
-              <Ionicons name="layers-outline" size={13} color={brandColors.primary} />
-              <Text
-                style={[
-                  styles.countsText,
-                  { color: isDark ? '#94A3B8' : '#64748B' },
-                ]}
-              >
-                {rtl
-                  ? `${progress?.cardCount || 0} بطاقة • ${progress?.mediaCount || 0} وسائط`
-                  : `${progress?.cardCount || 0} Cards • ${progress?.mediaCount || 0} Media`}
-              </Text>
-            </View>
+            <Row gap={6} style={{ marginTop: 12, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: colors.surface }}>
+              <Ionicons name="layers" size={13} color={colors.primary} />
+              <AppText variant="caption" weight="bold" color="textSecondary">
+                {t('backup_progress.counts', { cards: progress?.cardCount || 0, media: progress?.mediaCount || 0 })}
+              </AppText>
+            </Row>
           )}
-        </View>
+        </Card>
       </View>
     </Modal>
   );
 };
-
-const { width } = Dimensions.get('window');
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(11, 15, 25, 0.78)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  card: {
-    width: Math.min(width - 40, 360),
-    borderRadius: 28,
-    borderWidth: 1.5,
-    paddingVertical: 24,
-    paddingHorizontal: 22,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.35,
-    shadowRadius: 28,
-    elevation: 12,
-  },
-  header: {
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  visualContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-    position: 'relative',
-  },
-  ringWrapper: {
-    width: 164,
-    height: 164,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  illustrationOverlay: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  percentBadge: {
-    position: 'absolute',
-    bottom: -8,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  percentText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  messageBox: {
-    marginTop: 18,
-    marginBottom: 14,
-    alignItems: 'center',
-    minHeight: 46,
-    justifyContent: 'center',
-  },
-  mainMessage: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 3,
-  },
-  detailMessage: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  stepperRow: {
-    width: '100%',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 16,
-  },
-  stepItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  stepLabel: {
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  progressTrackWrapper: {
-    width: '100%',
-    marginBottom: 12,
-  },
-  countsPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  countsText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-});

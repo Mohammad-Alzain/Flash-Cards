@@ -11,11 +11,14 @@
     "test": "jest"
   },
   "dependencies": {
+    "@expo-google-fonts/cairo": "^0.4.2",
+    "@expo-google-fonts/nunito": "^0.4.2",
     "@expo/metro-runtime": "~57.0.16",
     "@expo/vector-icons": "^15.0.2",
     "expo": "^57.0.0",
     "expo-asset": "~57.0.18",
     "expo-audio": "~57.0.5",
+    "expo-calendar": "~57.0.5",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.20",
     "expo-document-picker": "~57.0.3",
@@ -34,6 +37,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
     "fzstd": "^0.1.1",
     "i18next": "^23.11.5",
     "jszip": "^3.10.1",

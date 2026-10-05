@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  Platform,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Modal, View, ScrollView, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
+import { AppText, Row, Button, Card } from '../ui';
+import { Illustration } from '../illustrations';
 import { AppErrorDetails } from '../../core/utils/errorHandler';
 
 interface ErrorModalProps {
@@ -20,279 +13,88 @@ interface ErrorModalProps {
   onClose: () => void;
 }
 
+const COPIED_RESET_MS = 2500;
+
+/** Friendly error dialog with optional technical details and copy-to-clipboard. */
 export const ErrorModal: React.FC<ErrorModalProps> = ({ visible, error, onClose }) => {
-  const { colors, spacing, typography } = useTheme();
-  const rtl = isRTL();
+  const { colors, shape } = useTheme();
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   if (!visible || !error) return null;
 
-  const handleCopy = async () => {
+  const copy = async () => {
     const fullText = [
       `Title: ${error.title}`,
       `Context: ${error.context || 'Unknown'}`,
       `Time: ${new Date(error.timestamp || Date.now()).toISOString()}`,
       `Message: ${error.message}`,
       error.stack ? `\nStack:\n${error.stack}` : '',
-    ].filter(Boolean).join('\n');
-
+    ]
+      .filter(Boolean)
+      .join('\n');
     try {
       await Clipboard.setStringAsync(fullText);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      setTimeout(() => setCopied(false), COPIED_RESET_MS);
     } catch (e) {
       console.warn('Failed to copy to clipboard:', e);
     }
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          {/* Header Icon + Title */}
-          <View style={[styles.header, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            <View style={[styles.iconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-              <Ionicons name="alert-circle" size={28} color="#ef4444" />
-            </View>
-            <View style={{ flex: 1, marginHorizontal: spacing.sm }}>
-              <Text
-                style={[
-                  styles.title,
-                  {
-                    color: colors.text,
-                    textAlign: rtl ? 'right' : 'left',
-                  },
-                ]}
-                numberOfLines={2}
-              >
-                {error.title}
-              </Text>
-              {error.context && (
-                <Text
-                  style={[
-                    styles.context,
-                    {
-                      color: colors.textSecondary,
-                      textAlign: rtl ? 'right' : 'left',
-                    },
-                  ]}
-                >
-                  {error.context}
-                </Text>
-              )}
-            </View>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={{ flex: 1, backgroundColor: 'rgba(8,10,25,0.6)', justifyContent: 'center', padding: 20 }}>
+        <Card style={{ borderRadius: shape.sheet, maxHeight: '85%' }}>
+          <View style={{ alignItems: 'center' }}>
+            <Illustration name="error" size={150} />
+            <AppText variant="h3" align="center" numberOfLines={2}>
+              {error.title}
+            </AppText>
+            {!!error.context && (
+              <AppText variant="caption" color="textMuted" align="center">
+                {error.context}
+              </AppText>
+            )}
           </View>
 
-          {/* User-facing Message */}
-          <ScrollView style={styles.messageScroll} contentContainerStyle={{ paddingVertical: 4 }}>
-            <Text
-              style={[
-                styles.message,
-                {
-                  color: colors.text,
-                  textAlign: rtl ? 'right' : 'left',
-                },
-              ]}
-            >
+          <ScrollView style={{ maxHeight: 260, marginVertical: 12 }}>
+            <AppText variant="body" color="textSecondary" align="center">
               {error.message}
-            </Text>
-
-            {/* Collapsible Stack / Technical Details */}
-            {error.stack && (
-              <View style={{ marginTop: spacing.md }}>
-                <Pressable
+            </AppText>
+            {!!error.stack && (
+              <>
+                <Button
+                  title={showDetails ? t('error_modal.hide_details') : t('error_modal.show_details')}
+                  icon={showDetails ? 'chevron-up' : 'code-slash'}
+                  variant="soft"
+                  size="sm"
                   onPress={() => setShowDetails(!showDetails)}
-                  style={[styles.toggleBtn, { flexDirection: rtl ? 'row-reverse' : 'row' }]}
-                >
-                  <Ionicons
-                    name={showDetails ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color={colors.primary}
-                  />
-                  <Text style={{ color: colors.primary, fontSize: 13, marginHorizontal: 6 }}>
-                    {showDetails
-                      ? (rtl ? 'إخفاء التفاصيل التقنية' : 'Hide Technical Details')
-                      : (rtl ? 'عرض التفاصيل التقنية' : 'Show Technical Details')}
-                  </Text>
-                </Pressable>
-
+                  style={{ alignSelf: 'center', marginTop: 12 }}
+                />
                 {showDetails && (
-                  <View
-                    style={[
-                      styles.stackContainer,
-                      {
-                        backgroundColor: colors.background,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <ScrollView horizontal nestedScrollEnabled>
-                      <Text style={[styles.stackText, { color: colors.textSecondary }]}>
-                        {error.stack}
-                      </Text>
-                    </ScrollView>
+                  <View style={{ marginTop: 10, padding: 10, borderRadius: 12, backgroundColor: colors.surface }}>
+                    <AppText
+                      size={11}
+                      color="textSecondary"
+                      align="left"
+                      style={{ fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }) }}
+                    >
+                      {error.stack}
+                    </AppText>
                   </View>
                 )}
-              </View>
+              </>
             )}
           </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={[styles.actions, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            <Pressable
-              onPress={handleCopy}
-              style={({ pressed }) => [
-                styles.btn,
-                styles.copyBtn,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: pressed ? colors.surface : 'transparent',
-                },
-              ]}
-            >
-              <Ionicons
-                name={copied ? 'checkmark' : 'copy-outline'}
-                size={16}
-                color={copied ? '#10b981' : colors.text}
-                style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
-              />
-              <Text
-                style={{
-                  color: copied ? '#10b981' : colors.text,
-                  fontWeight: '600',
-                  fontSize: 13,
-                }}
-              >
-                {copied
-                  ? (rtl ? 'تم النسخ!' : 'Copied!')
-                  : (rtl ? 'نسخ تفاصيل الخطأ' : 'Copy Error')}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={onClose}
-              style={({ pressed }) => [
-                styles.btn,
-                styles.closeBtn,
-                {
-                  backgroundColor: pressed ? '#dc2626' : '#ef4444',
-                },
-              ]}
-            >
-              <Text style={styles.closeText}>
-                {rtl ? 'إغلاق' : 'Close'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+          <Row gap={10}>
+            <Button title={copied ? t('error_modal.copied') : t('error_modal.copy')} icon={copied ? 'checkmark' : 'copy'} variant="ghost" onPress={copy} style={{ flex: 1 }} />
+            <Button title={t('common.close')} onPress={onClose} style={{ flex: 1 }} />
+          </Row>
+        </Card>
       </View>
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    maxHeight: '80%',
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 18,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: 'bold',
-  },
-  context: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  messageScroll: {
-    maxHeight: 280,
-    marginVertical: 8,
-  },
-  message: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  toggleBtn: {
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  stackContainer: {
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    maxHeight: 140,
-  },
-  stackText: {
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  actions: {
-    marginTop: 16,
-    gap: 10,
-  },
-  btn: {
-    flex: 1,
-    height: 42,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  copyBtn: {
-    borderWidth: 1,
-  },
-  closeBtn: {},
-  closeText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-});

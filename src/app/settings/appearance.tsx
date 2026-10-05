@@ -1,216 +1,138 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, ThemeMode } from '../../theme';
-import { isRTL, changeLanguage } from '../../i18n';
-import { Header, Card, Chip } from '../../components/ui';
+import { useTheme, useDirection, ThemeMode, getThemeColors, alpha } from '../../theme';
+import { changeLanguage, USER_LANGUAGE_KEY } from '../../i18n';
+import { Screen, Header, Row, AppText, SectionHeader, PressableScale, Card } from '../../components/ui';
 import { settingsRepository } from '../../core/db/repositories/settingsRepository';
+
+const MODES: { mode: ThemeMode; key: string }[] = [
+  { mode: 'light', key: 'settings.theme_light' },
+  { mode: 'dark', key: 'settings.theme_dark' },
+  { mode: 'amoled', key: 'settings.theme_amoled' },
+];
+
+/** Miniature app mock-up rendered in a palette/mode's colours. */
+const ThemePreview: React.FC<{ bg: string; surface: string; primary: string; accent: string; text: string }> = ({ bg, surface, primary, accent, text }) => (
+  <View style={{ height: 78, borderRadius: 14, backgroundColor: bg, padding: 8, gap: 5, overflow: 'hidden' }}>
+    <View style={{ height: 22, borderRadius: 8, backgroundColor: primary }} />
+    <Row gap={5}>
+      <View style={{ flex: 1, height: 16, borderRadius: 6, backgroundColor: surface }} />
+      <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: accent }} />
+    </Row>
+    <View style={{ width: '60%', height: 6, borderRadius: 3, backgroundColor: alpha(text, 0.35) }} />
+  </View>
+);
 
 export default function AppearanceSettingsScreen() {
   const router = useRouter();
-  const { mode, setMode, palette, setPalette, palettesList, colors, typography, spacing } = useTheme();
+  const { mode, setMode, palette, setPalette, palettesList, colors, shadow } = useTheme();
+  const dir = useDirection();
   const { t, i18n } = useTranslation();
-  const rtl = isRTL();
 
-  const handleThemeChange = async (newMode: ThemeMode) => {
-    setMode(newMode);
-    await settingsRepository.set('theme_mode', newMode);
-  };
-
-  const handleLanguageChange = async (lang: 'ar' | 'en') => {
+  const pickLanguage = async (lang: 'ar' | 'en') => {
     await changeLanguage(lang);
     await settingsRepository.set('language', lang);
+    await settingsRepository.set(USER_LANGUAGE_KEY, lang);
   };
 
+  const selectedBorder = (selected: boolean) => ({
+    borderWidth: 2,
+    borderColor: selected ? colors.primary : colors.border,
+    backgroundColor: selected ? alpha(colors.primary, 0.06) : colors.surfaceRaised,
+  });
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <Header
-        title={t('settings.appearance')}
-        onBack={() => router.back()}
-      />
+    <Screen decor header={<Header title={t('settings.appearance')} subtitle={t('appearance.subtitle')} icon="color-palette" iconTone="pink" onBack={() => router.back()} />}>
+      {/* Mode */}
+      <SectionHeader title={t('appearance.mode_title')} icon="contrast" tone="indigo" />
+      <AppText variant="bodySm" color="textSecondary" style={{ marginBottom: 10 }}>
+        {t('appearance.mode_desc')}
+      </AppText>
+      <Row gap={10} align="stretch" style={{ marginBottom: 24 }}>
+        {MODES.map((m) => {
+          const c = getThemeColors(palette, m.mode);
+          const selected = mode === m.mode;
+          return (
+            <PressableScale key={m.mode} onPress={() => setMode(m.mode)} haptic style={[{ flex: 1, padding: 8, borderRadius: 20 }, selectedBorder(selected), selected ? null : shadow(1)]}>
+              <ThemePreview bg={c.background} surface={c.surfaceRaised} primary={c.primary} accent={c.accent} text={c.text} />
+              <Row gap={4} justify="center" style={{ marginTop: 8 }}>
+                {selected && <Ionicons name="checkmark-circle" size={15} color={colors.primary} />}
+                <AppText variant="caption" weight="extrabold" color={selected ? 'primary' : 'text'} align="center" numberOfLines={1}>
+                  {t(m.key)}
+                </AppText>
+              </Row>
+            </PressableScale>
+          );
+        })}
+      </Row>
 
-      <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
-        {/* Theme Mode Section */}
-        <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
-            <Ionicons
-              name="moon-outline"
-              size={22}
-              color={colors.primary}
-            />
-            <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
-              {rtl ? 'وضع العرض (النهار / الليل)' : 'Display Mode'}
-            </Text>
-          </View>
+      {/* Palette */}
+      <SectionHeader title={t('appearance.palette_title')} icon="color-palette" tone="pink" />
+      <AppText variant="bodySm" color="textSecondary" style={{ marginBottom: 10 }}>
+        {t('appearance.palette_desc')}
+      </AppText>
+      <Row wrap gap={10} style={{ marginBottom: 24 }}>
+        {palettesList.map((p) => {
+          const c = getThemeColors(p.id, mode);
+          const selected = palette === p.id;
+          return (
+            <PressableScale
+              key={p.id}
+              onPress={() => setPalette(p.id)}
+              haptic
+              style={[{ width: '48%', flexGrow: 1, padding: 10, borderRadius: 20 }, selectedBorder(selected), selected ? null : shadow(1)]}
+            >
+              <ThemePreview bg={c.background} surface={c.surfaceRaised} primary={c.primary} accent={c.accent} text={c.text} />
+              <Row gap={8} style={{ marginTop: 8 }}>
+                <Row>
+                  {[c.primary, c.accent, c.gold].map((sw, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        { width: 16, height: 16, borderRadius: 8, backgroundColor: sw, borderWidth: 2, borderColor: colors.surfaceRaised },
+                        i > 0 ? dir.ms(-6) : null,
+                      ]}
+                    />
+                  ))}
+                </Row>
+                <AppText variant="caption" weight="extrabold" color={selected ? 'primary' : 'text'} numberOfLines={1} style={{ flex: 1 }}>
+                  {dir.arabic ? p.nameAr : p.nameEn}
+                </AppText>
+                {selected && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
+              </Row>
+            </PressableScale>
+          );
+        })}
+      </Row>
 
-          <Text style={[styles.cardDescription, { color: colors.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>
-            {rtl ? 'اختر بين المظهر النهاري، الليلي الهادئ، أو سواد AMOLED الفائق' : 'Choose between Light, Dark, or AMOLED Black'}
-          </Text>
-
-          <View style={[styles.chipsRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginTop: 12 }]}>
-            <Chip
-              label={t('settings.theme_light')}
-              selected={mode === 'light'}
-              onPress={() => handleThemeChange('light')}
-            />
-            <Chip
-              label={t('settings.theme_dark')}
-              selected={mode === 'dark'}
-              onPress={() => handleThemeChange('dark')}
-            />
-            <Chip
-              label={t('settings.theme_amoled')}
-              selected={mode === 'amoled'}
-              onPress={() => handleThemeChange('amoled')}
-            />
-          </View>
-        </Card>
-
-        {/* Color Palette / Theme Styles Section */}
-        <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
-            <Ionicons
-              name="color-palette-outline"
-              size={22}
-              color={colors.primary}
-            />
-            <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
-              {rtl ? 'لوحة ألوان التطبيق' : 'App Color Palette'}
-            </Text>
-          </View>
-
-          <Text style={[styles.cardDescription, { color: colors.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>
-            {rtl
-              ? 'اختر النمط البصري المفضل لديك من بين 8 باليتات راقية ومريحة للعين'
-              : 'Choose your preferred visual aesthetic from 8 curated palettes'}
-          </Text>
-
-          <View style={{ marginTop: 12, gap: 8 }}>
-            {palettesList.map((p) => {
-              const isSelected = palette === p.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => setPalette(p.id)}
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: rtl ? 'row-reverse' : 'row',
-                      alignItems: 'center',
-                      padding: 12,
-                      borderRadius: 14,
-                      borderWidth: isSelected ? 2 : 1,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                      backgroundColor: isSelected
-                        ? colors.surfaceRaised
-                        : colors.surface,
-                      opacity: pressed ? 0.8 : 1,
-                      gap: 12,
-                    },
-                  ]}
-                >
-                  {/* Color preview circle */}
-                  <View
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: p.primaryColor,
-                      borderWidth: 2,
-                      borderColor: '#FFFFFF',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 2,
-                      elevation: 2,
-                    }}
-                  />
-
-                  {/* Title & info */}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: isSelected ? '700' : '500',
-                        textAlign: rtl ? 'right' : 'left',
-                      }}
-                    >
-                      {rtl ? p.nameAr : p.nameEn}
-                    </Text>
-                  </View>
-
-                  {/* Radio selection indicator */}
-                  <Ionicons
-                    name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                    size={20}
-                    color={isSelected ? colors.primary : colors.textMuted}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-
-        {/* Language Section */}
-        <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
-            <Ionicons
-              name="language-outline"
-              size={22}
-              color={colors.primary}
-            />
-            <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
-              {t('settings.language')}
-            </Text>
-          </View>
-
-          <Text style={[styles.cardDescription, { color: colors.textSecondary, textAlign: rtl ? 'right' : 'left' }]}>
-            {rtl ? 'اختر لغة واجهة التطبيق والاتجاه المناسب' : 'Select interface language and display direction'}
-          </Text>
-
-          <View style={[styles.chipsRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginTop: 12 }]}>
-            <Chip
-              label={t('settings.lang_ar')}
-              selected={i18n.language === 'ar'}
-              onPress={() => handleLanguageChange('ar')}
-            />
-            <Chip
-              label={t('settings.lang_en')}
-              selected={i18n.language === 'en'}
-              onPress={() => handleLanguageChange('en')}
-            />
-          </View>
-        </Card>
-      </ScrollView>
-    </SafeAreaView>
+      {/* Language */}
+      <SectionHeader title={t('settings.language')} icon="language" tone="teal" />
+      <AppText variant="bodySm" color="textSecondary" style={{ marginBottom: 10 }}>
+        {t('appearance.language_desc')}
+      </AppText>
+      <Row gap={10} align="stretch">
+        {([
+          { lang: 'ar', glyph: 'ع', label: t('settings.lang_ar') },
+          { lang: 'en', glyph: 'Aa', label: t('settings.lang_en') },
+        ] as const).map((l) => {
+          const selected = i18n.language === l.lang;
+          return (
+            <PressableScale key={l.lang} onPress={() => pickLanguage(l.lang)} haptic style={[{ flex: 1, padding: 14, borderRadius: 20, alignItems: 'center' }, selectedBorder(selected), selected ? null : shadow(1)]}>
+              <Card variant={selected ? 'gradient' : 'flat'} padding={0} style={{ width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+                <AppText size={24} weight="black" color={selected ? '#FFFFFF' : 'textSecondary'} align="center">
+                  {l.glyph}
+                </AppText>
+              </Card>
+              <AppText variant="bodySm" weight="extrabold" color={selected ? 'primary' : 'text'} align="center" style={{ marginTop: 8 }}>
+                {l.label}
+              </AppText>
+            </PressableScale>
+          );
+        })}
+      </Row>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  content: {},
-  card: {
-    padding: 16,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  cardDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  chipsRow: {
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-});

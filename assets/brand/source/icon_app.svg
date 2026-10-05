@@ -1,49 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  
   <defs>
-    <linearGradient id="appBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E1B4B"/>
-      <stop offset="50%" stop-color="#111827"/>
-      <stop offset="100%" stop-color="#0B0F19"/>
-    </linearGradient>
-    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#4F46E5" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="appCardBack" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3730A3"/>
-      <stop offset="100%" stop-color="#1E1B4B"/>
-    </linearGradient>
-    <linearGradient id="appCardFront" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366F1"/>
-      <stop offset="100%" stop-color="#4F46E5"/>
-    </linearGradient>
-    <linearGradient id="appSpark" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="60%" stop-color="#67E8F9"/>
-      <stop offset="100%" stop-color="#06B6D4"/>
-    </linearGradient>
-    <filter id="appShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="28" stdDeviation="32" flood-color="#000000" flood-opacity="0.5"/>
-    </filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2E2A7A"/><stop offset="1" stop-color="#12112E"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.46" r="0.5"><stop offset="0" stop-color="#6366F1" stop-opacity="0.55"/><stop offset="1" stop-color="#6366F1" stop-opacity="0"/></radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.28"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
   </defs>
-
-  <!-- Opaque Background (Required for iOS App Store & Android Play Store) -->
-  <rect width="1024" height="1024" fill="url(#appBgGrad)"/>
-  <rect width="1024" height="1024" fill="url(#centerGlow)"/>
-
-  <!-- Centered Synapse Spark Mark (Scaled to 640x640 at center x=192, y=192) -->
-  <g transform="translate(192, 192) scale(1.25)">
-    <!-- Back Stack Card (Tilted -10 deg) -->
-    <rect x="116" y="80" width="280" height="352" rx="44" transform="rotate(-10 256 256)" fill="url(#appCardBack)" opacity="0.92" />
-    
-    <!-- Front Card with drop shadow -->
-    <rect x="116" y="80" width="280" height="352" rx="44" fill="url(#appCardFront)" filter="url(#appShadow)" stroke="#818CF8" stroke-width="4" stroke-opacity="0.6"/>
-    
-    <!-- Center Synapse Spark -->
-    <path d="M 256 168 Q 256 256 168 256 Q 256 256 256 344 Q 256 256 344 256 Q 256 256 256 168 Z" fill="url(#appSpark)"/>
-    
-    <!-- Satellite Energy Sparks -->
-    <circle cx="340" cy="180" r="14" fill="#22D3EE"/>
-    <circle cx="172" cy="332" r="10" fill="#A5F3FC" opacity="0.85"/>
+  <rect x="0" y="0" width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="236" r="230" fill="url(#glow)"/>
+  <path d="M 112 102 Q 112 128 138 128 Q 112 128 112 154 Q 112 128 86 128 Q 112 128 112 102 Z" fill="#FFC24B"/>
+  <path d="M 404 382 Q 404 398 420 398 Q 404 398 404 414 Q 404 398 388 398 Q 404 398 404 382 Z" fill="#FFFFFF" opacity="0.85"/>
+  <circle cx="414" cy="112" r="11" fill="#22D3EE"/>
+  <circle cx="122" cy="404" r="7" fill="#A5F3FC" opacity="0.8"/><g transform="translate(118 91.20000000000002) scale(2.3)"><g>
+  <defs><linearGradient id="bodym" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8588f4"/><stop offset="1" stop-color="#6366F1"/></linearGradient></defs>
+  <ellipse cx="60" cy="146" rx="36" ry="5" fill="#000000" opacity="0.1"/>
+  <g transform="rotate(10 63 70)"><rect x="24" y="10" width="82" height="112" rx="18" fill="#6fe2f4"/></g>
+  <path d="M 16 88 Q 4 96 6 108" stroke="#575ad4" stroke-width="8" stroke-linecap="round" fill="none"/><circle cx="6" cy="109" r="6" fill="#575ad4"/><path d="M 104 88 Q 116 96 114 108" stroke="#575ad4" stroke-width="8" stroke-linecap="round" fill="none"/><circle cx="114" cy="109" r="6" fill="#575ad4"/>
+  <ellipse cx="42" cy="140" rx="11" ry="6.5" fill="#575ad4"/><ellipse cx="78" cy="140" rx="11" ry="6.5" fill="#575ad4"/>
+  <g transform="rotate(-4 60 74)">
+    <rect x="14" y="14" width="92" height="120" rx="24" fill="url(#bodym)"/>
+    <rect x="22" y="20" width="50" height="10" rx="5" fill="#FFFFFF" opacity="0.22"/>
+    <path d="M 94 21 Q 94 30 103 30 Q 94 30 94 39 Q 94 30 85 30 Q 94 30 94 21 Z" fill="#FFC24B"/>
+    <ellipse cx="42" cy="64" rx="11" ry="12.5" fill="#FFFFFF" stroke="#1B1B3A" stroke-opacity="0.12" stroke-width="1.5"/><circle cx="43" cy="66" r="6.5" fill="#1B1B3A"/><circle cx="45.5" cy="63.5" r="2.4" fill="#FFFFFF"/><ellipse cx="78" cy="64" rx="11" ry="12.5" fill="#FFFFFF" stroke="#1B1B3A" stroke-opacity="0.12" stroke-width="1.5"/><circle cx="79" cy="66" r="6.5" fill="#1B1B3A"/><circle cx="81.5" cy="63.5" r="2.4" fill="#FFFFFF"/>
+    <ellipse cx="28" cy="82" rx="7.5" ry="4.5" fill="#FF8FB1" opacity="0.7"/><ellipse cx="92" cy="82" rx="7.5" ry="4.5" fill="#FF8FB1" opacity="0.7"/>
+    <path d="M 49 85 Q 60 97 71 85" stroke="#1B1B3A" stroke-width="3.8" stroke-linecap="round" fill="none"/>
   </g>
-</svg>
+</g></g></svg>

@@ -324,6 +324,19 @@ export const deckRepository = {
     }
   },
 
+  /** Note type used by an existing card in the deck (null for empty decks). */
+  async getNoteTypeIdUsedInDeck(deckId: string): Promise<string | null> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ note_type_id: string }>(
+      `SELECT n.note_type_id FROM notes n
+       JOIN cards c ON c.note_id = n.id
+       WHERE c.deck_id = ?
+       LIMIT 1;`,
+      deckId
+    );
+    return row?.note_type_id ?? null;
+  },
+
   /**
    * Retrieves the last studied deck ID, checking:
    * 1. settings 'last_studied_deck_id' (if deck exists and not archived)

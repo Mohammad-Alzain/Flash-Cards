@@ -148,6 +148,12 @@ export async function checkDatabaseIntegrity(): Promise<{ ok: boolean; message: 
   }
 }
 
+/** Reclaims free pages and refreshes query-planner statistics. */
+export async function optimizeDatabase(): Promise<void> {
+  const db = await getDatabase();
+  await db.execAsync('VACUUM; ANALYZE;');
+}
+
 export async function checkpointDatabase(): Promise<void> {
   if (dbInstance) {
     try {

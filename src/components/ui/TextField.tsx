@@ -1,174 +1,153 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  ViewStyle,
-  TextStyle,
-  Pressable,
-} from 'react-native';
-import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
+import { View, TextInput, TextInputProps, ViewStyle, TextStyle, StyleProp, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, useDirection, alpha } from '../../theme';
+import { AppText } from './AppText';
+import { IconName } from './types';
 
-interface TextFieldProps {
+interface TextFieldProps extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'> {
   label?: string;
   value: string;
   onChangeText: (text: string) => void;
-  placeholder?: string;
   error?: string;
-  multiline?: boolean;
-  numberOfLines?: number;
+  hint?: string;
+  /** Force text direction; defaults to the app language. */
   rtl?: boolean;
-  style?: ViewStyle;
-  inputStyle?: TextStyle;
+  icon?: IconName;
   clearButton?: boolean;
-  autoFocus?: boolean;
+  style?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
 }
 
 export const TextField: React.FC<TextFieldProps> = ({
   label,
   value,
   onChangeText,
-  placeholder,
   error,
+  hint,
   multiline = false,
   numberOfLines = 1,
   rtl,
+  icon,
+  clearButton = false,
   style,
   inputStyle,
-  clearButton = false,
-  autoFocus = false,
+  onFocus,
+  onBlur,
+  ...inputProps
 }) => {
-  const { colors, typography, radius, spacing } = useTheme();
-  const [isFocused, setIsFocused] = useState(false);
-
-  // Direction: if specified, use it; otherwise follow app RTL state
-  const isTextRTL = rtl !== undefined ? rtl : isRTL();
+  const { colors, shape } = useTheme();
+  const dir = useDirection();
+  const [focused, setFocused] = useState(false);
+  const isRTLText = rtl ?? dir.rtl;
+  const borderColor = error ? colors.error : focused ? colors.primary : colors.border;
 
   return (
-    <View style={[styles.container, style]}>
-      {label && (
-        <Text
-          style={[
-            styles.label,
-            {
-              color: colors.text,
-              fontSize: typography.sizes.sm,
-              fontWeight: typography.weights.bold,
-              textAlign: isTextRTL ? 'right' : 'left',
-              marginBottom: spacing.xs,
-            },
-          ]}
+    <View style={[{ width: '100%', marginBottom: 16 }, style]}>
+      {!!label && (
+        <AppText
+          variant="bodySm"
+          weight="bold"
+          color="textSecondary"
+          style={{ marginBottom: 6, paddingHorizontal: 4, textAlign: isRTLText ? 'right' : 'left' }}
         >
           {label}
-        </Text>
+        </AppText>
       )}
 
       <View
-        style={[
-          styles.inputWrapper,
-          {
-            backgroundColor: colors.surface,
-            borderRadius: radius.md,
-            borderColor: error
-              ? colors.error
-              : isFocused
-              ? colors.primary
-              : colors.border,
-            borderBottomWidth: 3,
-            borderBottomColor: error
-              ? colors.errorPressed
-              : isFocused
-              ? colors.primaryPressed
-              : colors.borderDarker,
-            minHeight: multiline ? (numberOfLines || 3) * 24 + 20 : 50,
-          },
-        ]}
+        style={{
+          flexDirection: 'row',
+          alignItems: multiline ? 'flex-start' : 'center',
+          backgroundColor: colors.surface,
+          borderRadius: shape.input,
+          borderWidth: 1.5,
+          borderColor,
+          minHeight: multiline ? (numberOfLines || 3) * 24 + 24 : 52,
+          paddingHorizontal: 12,
+        }}
       >
+        {/* In RTL: clear button sits on the left */}
+        {isRTLText && clearButton && value.length > 0 && !multiline && (
+          <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel="Clear" style={{ paddingHorizontal: 4 }}>
+            <Ionicons name="close-circle" size={19} color={colors.textMuted} />
+          </Pressable>
+        )}
+
+        {/* In LTR: icon sits on the left */}
+        {!isRTLText && icon && (
+          <Ionicons
+            name={icon}
+            size={19}
+            color={focused ? colors.primary : colors.textMuted}
+            style={[
+              { marginRight: 8 },
+              multiline ? { marginTop: 14 } : undefined,
+            ]}
+          />
+        )}
+
         <TextInput
+          {...inputProps}
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
           multiline={multiline}
           numberOfLines={numberOfLines}
-          autoFocus={autoFocus}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          textAlign={isTextRTL ? 'right' : 'left'}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
+          textAlign={isRTLText ? 'right' : 'left'}
+          selectionColor={alpha(colors.primary, 0.4)}
+          cursorColor={colors.primary}
+          underlineColorAndroid="transparent"
           style={[
-            styles.input,
             {
+              flex: 1,
               color: colors.text,
-              fontSize: typography.sizes.md,
+              fontSize: 15,
               textAlignVertical: multiline ? 'top' : 'center',
-              paddingLeft: isTextRTL && clearButton && value.length > 0 ? 38 : spacing.md,
-              paddingRight: !isTextRTL && clearButton && value.length > 0 ? 38 : spacing.md,
-              paddingVertical: spacing.sm,
+              paddingVertical: multiline ? 12 : 10,
+              paddingHorizontal: 4,
             },
             inputStyle,
           ]}
         />
 
-        {clearButton && value.length > 0 && !multiline && (
-          <Pressable
-            onPress={() => onChangeText('')}
+        {/* In RTL: icon sits on the right */}
+        {isRTLText && icon && (
+          <Ionicons
+            name={icon}
+            size={19}
+            color={focused ? colors.primary : colors.textMuted}
             style={[
-              styles.clearBtn,
-              {
-                left: isTextRTL ? 12 : undefined,
-                right: isTextRTL ? undefined : 12,
-              },
+              { marginLeft: 8 },
+              multiline ? { marginTop: 14 } : undefined,
             ]}
-            hitSlop={8}
-          >
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          />
+        )}
+
+        {/* In LTR: clear button sits on the right */}
+        {!isRTLText && clearButton && value.length > 0 && !multiline && (
+          <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel="Clear" style={{ paddingHorizontal: 4 }}>
+            <Ionicons name="close-circle" size={19} color={colors.textMuted} />
           </Pressable>
         )}
       </View>
 
-      {error && (
-        <Text
-          style={[
-            styles.errorText,
-            {
-              color: colors.error,
-              fontSize: typography.sizes.xs,
-              marginTop: 4,
-              textAlign: isTextRTL ? 'right' : 'left',
-            },
-          ]}
-        >
-          {error}
-        </Text>
+      {!!(error || hint) && (
+        <View style={{ flexDirection: isRTLText ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 6, paddingHorizontal: 4 }}>
+          {error && <Ionicons name="alert-circle" size={14} color={colors.error} />}
+          <AppText variant="caption" color={error ? 'error' : 'textMuted'} style={{ flex: 1, textAlign: isRTLText ? 'right' : 'left' }}>
+            {error || hint}
+          </AppText>
+        </View>
       )}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  label: {},
-  inputWrapper: {
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
-    flex: 1,
-  },
-  clearBtn: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  errorText: {},
-});

@@ -40,4 +40,22 @@ export const changeLanguage = async (lang: 'ar' | 'en') => {
 
 export const isRTL = () => i18n.language === 'ar' || I18nManager.isRTL;
 
+/**
+ * Settings key holding the language the user explicitly picked. (The legacy
+ * `language` key is seeded with a default, so it can't tell a choice apart.)
+ */
+export const USER_LANGUAGE_KEY = 'language_user_choice';
+
+/** Re-applies the user's saved language choice; falls back to the system locale. */
+export const restoreUserLanguage = async (read: (key: string) => Promise<string>) => {
+  try {
+    const saved = await read(USER_LANGUAGE_KEY);
+    if ((saved === 'ar' || saved === 'en') && saved !== i18n.language) {
+      await changeLanguage(saved);
+    }
+  } catch (e) {
+    console.warn('Failed to restore language:', e);
+  }
+};
+
 export default i18n;

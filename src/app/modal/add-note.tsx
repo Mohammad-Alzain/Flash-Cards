@@ -1,369 +1,133 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-} from 'react-native';
-import { CustomAlert } from '../../components/common/CustomDialog';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
-import { Header, TextField, Button, Card } from '../../components/ui';
-import { Ionicons } from '@expo/vector-icons';
+import { CustomAlert } from '../../components/common/CustomDialog';
+import { Screen, Header, TextField, Button, Badge, ChipPicker, FormSection } from '../../components/ui';
 import { deckRepository, DeckWithCounts } from '../../core/db/repositories/deckRepository';
 import { noteRepository } from '../../core/db/repositories/noteRepository';
-import { getDatabase } from '../../core/db/connection';
 import { NoteType } from '../../core/types/models';
-
-interface FieldDef {
-  id: string;
-  name: string;
-  ord: number;
-}
+import { FieldDef, parseFieldDefs } from '../../features/notes/noteFields';
+import { NoteFieldInput } from '../../features/notes/components/NoteFormParts';
 
 export default function AddNoteModal() {
-  const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ deckId?: string }>();
-  const rtl = isRTL();
 
   const [decks, setDecks] = useState<DeckWithCounts[]>([]);
   const [noteTypes, setNoteTypes] = useState<NoteType[]>([]);
-  const [selectedDeckId, setSelectedDeckId] = useState<string>(params.deckId || '');
-  const [selectedNoteTypeId, setSelectedNoteTypeId] = useState<string>('');
-
+  const [deckId, setDeckId] = useState<string>(params.deckId || '');
+  const [noteTypeId, setNoteTypeId] = useState<string>('');
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>({});
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const [firstFieldError, setFirstFieldError] = useState('');
 
-  // 1. Initial Load: Decks and Note Types
+  // Decks + note types; preselect the requested deck when it exists.
   useEffect(() => {
-    Promise.all([
-      deckRepository.getAllWithCounts(),
-      noteRepository.getAllNoteTypes(),
-    ]).then(([d, nt]) => {
+    Promise.all([deckRepository.getAllWithCounts(), noteRepository.getAllNoteTypes()]).then(([d, nt]) => {
       setDecks(d);
       setNoteTypes(nt);
-
-      const targetDeckId = params.deckId && d.some((item) => item.id === params.deckId)
-        ? params.deckId
-        : (d.length > 0 ? d[0].id : '');
-
-      setSelectedDeckId(targetDeckId);
-      if (nt.length > 0) {
-        setSelectedNoteTypeId(nt[0].id);
-      }
+      setDeckId(params.deckId && d.some((x) => x.id === params.deckId) ? params.deckId : d[0]?.id ?? '');
+      if (nt.length > 0) setNoteTypeId(nt[0].id);
     });
   }, [params.deckId]);
 
-  // 2. When Deck Changes: Auto-detect the Note Type used by this deck
+  // Default to the note type the selected deck already uses.
   useEffect(() => {
-    if (!selectedDeckId) return;
-
-    let isMounted = true;
-    getDatabase().then(async (db) => {
-      try {
-        const row = await db.getFirstAsync<{ note_type_id: string }>(
-          `SELECT n.note_type_id FROM notes n
-           JOIN cards c ON c.note_id = n.id
-           WHERE c.deck_id = ?
-           LIMIT 1;`,
-          selectedDeckId
-        );
-        if (isMounted && row?.note_type_id) {
-          setSelectedNoteTypeId(row.note_type_id);
-        }
-      } catch (e) {
-        // Fallback to currently selected note type
-      }
-    });
-
+    if (!deckId) return;
+    let mounted = true;
+    deckRepository
+      .getNoteTypeIdUsedInDeck(deckId)
+      .then((id) => {
+        if (mounted && id) setNoteTypeId(id);
+      })
+      .catch(() => {});
     return () => {
-      isMounted = false;
+      mounted = false;
     };
-  }, [selectedDeckId]);
+  }, [deckId]);
 
-  // 3. When Note Type Changes: Parse its actual fields dynamically
+  // Fields follow the selected note type.
   useEffect(() => {
-    if (!selectedNoteTypeId) return;
+    if (!noteTypeId) return;
+    setFieldDefs(parseFieldDefs(noteTypes.find((nt) => nt.id === noteTypeId)?.fields_json));
+  }, [noteTypeId, noteTypes]);
 
-    const currentNt = noteTypes.find((nt) => nt.id === selectedNoteTypeId);
-    if (currentNt) {
-      try {
-        const parsed = JSON.parse(currentNt.fields_json || '[]');
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const defs: FieldDef[] = parsed.map((item: any, idx: number) => ({
-            id: item.id || `f_${idx}`,
-            name: typeof item === 'string' ? item : item.name || `Field ${idx + 1}`,
-            ord: idx,
-          }));
-          setFieldDefs(defs);
-          return;
-        }
-      } catch (e) {}
-    }
+  const firstField = fieldDefs[0]?.name || 'Front';
 
-    // Default fallback
-    setFieldDefs([
-      { id: 'f0', name: 'Front', ord: 0 },
-      { id: 'f1', name: 'Back', ord: 1 },
-    ]);
-  }, [selectedNoteTypeId, noteTypes]);
-
-  const handleFieldChange = (fieldName: string, text: string) => {
-    setFieldValues((prev) => ({
-      ...prev,
-      [fieldName]: text,
-    }));
-    if (fieldName === (fieldDefs[0]?.name || 'Front') && text.trim()) {
-      setFirstFieldError('');
-    }
+  const setField = (name: string, text: string) => {
+    setValues((prev) => ({ ...prev, [name]: text }));
+    if (name === firstField && text.trim()) setFirstFieldError('');
   };
 
-  const handleSave = async () => {
-    const firstField = fieldDefs[0]?.name || 'Front';
-    if (!fieldValues[firstField]?.trim()) {
-      setFirstFieldError(t('add_note.error_empty') || 'يرجى إدخال الحقل الأول على الأقل');
+  const save = async () => {
+    if (!values[firstField]?.trim()) {
+      setFirstFieldError(t('add_note.error_empty'));
       return;
     }
     setFirstFieldError('');
-
-    if (!selectedDeckId || !selectedNoteTypeId) {
-      CustomAlert.alert(
-        t('common.error'),
-        t('import_wizard.select_deck_notetype') || 'يرجى التأكد من اختيار الرزمة ونوع البطاقة.'
-      );
+    if (!deckId || !noteTypeId) {
+      CustomAlert.alert(t('common.error'), t('add_note.select_deck_type'));
       return;
     }
-
     setSaving(true);
     try {
-      await noteRepository.createNoteWithCards({
-        deckId: selectedDeckId,
-        noteTypeId: selectedNoteTypeId,
-        fields: fieldValues,
-        tags: tags.trim(),
-      });
-
+      await noteRepository.createNoteWithCards({ deckId, noteTypeId, fields: values, tags: tags.trim() });
       CustomAlert.alert(t('common.done'), t('add_note.success'), [
+        { text: t('common.close'), onPress: () => router.back() },
         {
-          text: t('common.close'),
-          onPress: () => router.back(),
-        },
-        {
-          text: t('common.add') + ' +',
+          text: t('add_note.add_another'),
           onPress: () => {
-            setFieldValues({});
+            setValues({});
             setFirstFieldError('');
           },
         },
       ]);
     } catch (err: any) {
-      CustomAlert.alert(t('common.error'), err.message || 'فشل في حفظ البطاقة');
+      CustomAlert.alert(t('common.error'), err.message || t('add_note.save_failed'));
     } finally {
       setSaving(false);
     }
   };
 
-  const selectedDeck = decks.find((d) => d.id === selectedDeckId);
-  const selectedNoteType = noteTypes.find((nt) => nt.id === selectedNoteTypeId);
+  const deckName = decks.find((d) => d.id === deckId)?.name;
+  const typeName = noteTypes.find((nt) => nt.id === noteTypeId)?.name;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <Header
-        title={t('add_note.title')}
-        onBack={() => router.back()}
-        rightElement={
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="close" size={24} color={colors.textSecondary} />
-          </Pressable>
-        }
-      />
+    <Screen
+      decor
+      header={<Header title={t('add_note.title')} subtitle={t('add_note.subtitle')} icon="add-circle" iconTone="green" onBack={() => router.back()} />}
+    >
+      <FormSection icon="albums" tone="violet" title={t('add_note.deck')} trailing={deckName ? <Badge size="sm" variant="primary" label={deckName} /> : undefined}>
+        <ChipPicker items={decks} selectedId={deckId} onSelect={setDeckId} getId={(d) => d.id} getLabel={(d) => d.name} />
+      </FormSection>
 
-      <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
-        {/* 1. Deck Picker */}
-        <View style={styles.section}>
-          <Text
-            style={[
-              styles.fieldLabel,
-              {
-                color: colors.text,
-                fontSize: typography.sizes.sm,
-                fontWeight: typography.weights.bold,
-                textAlign: rtl ? 'right' : 'left',
-                marginBottom: spacing.xs,
-              },
-            ]}
-          >
-            {t('add_note.deck')} ({selectedDeck?.name || ''})
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8 }}
-          >
-            {decks.map((deck) => (
-              <Pressable
-                key={deck.id}
-                onPress={() => setSelectedDeckId(deck.id)}
-                style={[
-                  styles.selectorChip,
-                  {
-                    backgroundColor: selectedDeckId === deck.id ? colors.primaryLight : colors.surface,
-                    borderColor: selectedDeckId === deck.id ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: selectedDeckId === deck.id ? colors.primary : colors.text,
-                    fontWeight: selectedDeckId === deck.id ? 'bold' : 'normal',
-                    fontSize: typography.sizes.sm,
-                  }}
-                >
-                  {deck.name}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
+      {noteTypes.length > 1 && (
+        <FormSection icon="shapes" tone="amber" title={t('add_note.card_type')} trailing={typeName ? <Badge size="sm" label={typeName} /> : undefined}>
+          <ChipPicker items={noteTypes} selectedId={noteTypeId} onSelect={setNoteTypeId} getId={(n) => n.id} getLabel={(n) => n.name} />
+        </FormSection>
+      )}
 
-        {/* 2. Note Type Picker */}
-        {noteTypes.length > 1 && (
-          <View style={styles.section}>
-            <Text
-              style={[
-                styles.fieldLabel,
-                {
-                  color: colors.textSecondary,
-                  fontSize: typography.sizes.xs,
-                  fontWeight: typography.weights.bold,
-                  textAlign: rtl ? 'right' : 'left',
-                  marginBottom: spacing.xs,
-                },
-              ]}
-            >
-              {rtl ? 'نوع البطاقة (القالب):' : 'Note Type (Template):'} {selectedNoteType?.name || ''}
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}
-            >
-              {noteTypes.map((nt) => (
-                <Pressable
-                  key={nt.id}
-                  onPress={() => setSelectedNoteTypeId(nt.id)}
-                  style={[
-                    styles.selectorChip,
-                    {
-                      paddingVertical: 6,
-                      paddingHorizontal: 12,
-                      backgroundColor: selectedNoteTypeId === nt.id ? colors.primary + '18' : colors.surfaceRaised,
-                      borderColor: selectedNoteTypeId === nt.id ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      color: selectedNoteTypeId === nt.id ? colors.primary : colors.textSecondary,
-                      fontWeight: selectedNoteTypeId === nt.id ? 'bold' : 'normal',
-                      fontSize: typography.sizes.xs,
-                    }}
-                  >
-                    {nt.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* 3. Dynamic Fields of the Selected Deck's Note Type */}
-        <View style={styles.section}>
-          <Text
-            style={[
-              styles.fieldLabel,
-              {
-                color: colors.text,
-                fontSize: typography.sizes.sm,
-                fontWeight: typography.weights.bold,
-                textAlign: rtl ? 'right' : 'left',
-                marginBottom: spacing.sm,
-              },
-            ]}
-          >
-            {rtl ? 'حقول الرزمة المستهدفة:' : 'Deck Fields:'}
-          </Text>
-
-          {fieldDefs.map((fDef, idx) => {
-            const isFirst = idx === 0;
-            const val = fieldValues[fDef.name] || '';
-            return (
-              <View key={fDef.id || fDef.name} style={{ marginBottom: spacing.sm }}>
-                <TextField
-                  label={fDef.name}
-                  placeholder={`${rtl ? 'أدخل' : 'Enter'} ${fDef.name}...`}
-                  value={val}
-                  onChangeText={(txt) => handleFieldChange(fDef.name, txt)}
-                  multiline
-                  numberOfLines={isFirst ? 3 : 4}
-                  error={isFirst ? firstFieldError : undefined}
-                />
-              </View>
-            );
-          })}
-        </View>
-
-        {/* 4. Tags Field */}
-        <View style={styles.section}>
-          <TextField
-            label={t('add_note.tags')}
-            placeholder={t('add_note.tags_placeholder')}
-            value={tags}
-            onChangeText={setTags}
+      <FormSection icon="document-text" tone="sky" title={t('add_note.fields_title')}>
+        {fieldDefs.map((def, idx) => (
+          <NoteFieldInput
+            key={def.id || def.name}
+            def={def}
+            value={values[def.name] || ''}
+            onChange={(txt) => setField(def.name, txt)}
+            lines={idx === 0 ? 3 : 4}
+            error={idx === 0 ? firstFieldError : undefined}
           />
-        </View>
+        ))}
+      </FormSection>
 
-        {/* 5. Save Button */}
-        <Button
-          title={t('add_note.save_button')}
-          variant="primary"
-          size="lg"
-          loading={saving}
-          onPress={handleSave}
-          style={{ marginTop: spacing.md }}
-        />
+      <FormSection icon="pricetags" tone="green" title={t('add_note.tags')}>
+        <TextField value={tags} onChangeText={setTags} placeholder={t('add_note.tags_placeholder')} icon="pricetag" style={{ marginBottom: 0 }} />
+      </FormSection>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </SafeAreaView>
+      <Button title={t('add_note.save_button')} icon="add-circle" size="lg" fullWidth loading={saving} onPress={save} style={{ marginTop: 4 }} />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  content: {},
-  section: {
-    marginBottom: 16,
-  },
-  fieldLabel: {},
-  horizontalScroll: {
-    flexDirection: 'row',
-  },
-  selectorChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-});

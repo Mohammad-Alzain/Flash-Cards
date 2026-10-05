@@ -139,7 +139,10 @@ export interface Schedule {
   days_of_week_mask: number; // bitmask e.g. Mon-Fri
   duration_min: number;
   enabled: number;
+  /** Comma-separated scheduled notification ids (one per weekday when not daily). */
   notification_id: string | null;
+  /** Comma-separated phone-calendar event ids, when linked to the calendar. */
+  calendar_event_ids?: string | null;
   created_at: number;
 }
 

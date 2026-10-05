@@ -1,62 +1,56 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, ViewStyle } from 'react-native';
-import { useTheme } from '../../theme';
+import { ViewStyle, StyleProp } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme, alpha } from '../../theme';
+import { PressableScale } from './PressableScale';
+import { AppText } from './AppText';
+import { Row } from './Row';
+import { IconName } from './types';
 
 interface ChipProps {
   label: string;
   selected?: boolean;
   onPress?: () => void;
-  style?: ViewStyle;
+  icon?: IconName;
+  /** Accent colour for the selected state (defaults to primary). */
+  color?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const Chip: React.FC<ChipProps> = ({
-  label,
-  selected = false,
-  onPress,
-  style,
-}) => {
-  const { colors, typography, radius, spacing } = useTheme();
+/** Selectable pill used for filters and option pickers. */
+export const Chip: React.FC<ChipProps> = ({ label, selected = false, onPress, icon, color, style }) => {
+  const { colors } = useTheme();
+  const accent = color ?? colors.primary;
+  const fg = selected ? accent : colors.textSecondary;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
+      disabled={!onPress}
+      haptic
+      activeScale={0.94}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      style={[
         {
-          backgroundColor: selected ? colors.primaryLight : colors.surface,
-          borderColor: selected ? colors.primary : colors.border,
-          borderRadius: radius.full,
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.xs,
-          opacity: pressed ? 0.8 : 1,
+          alignSelf: 'flex-start',
+          borderRadius: 999,
+          borderWidth: 1.5,
+          paddingHorizontal: 14,
+          paddingVertical: 7,
+          backgroundColor: selected ? alpha(accent, 0.12) : colors.surfaceRaised,
+          borderColor: selected ? accent : colors.border,
         },
         style,
       ]}
     >
-      <Text
-        style={[
-          styles.text,
-          {
-            color: selected ? colors.primary : colors.textSecondary,
-            fontSize: typography.sizes.sm,
-            fontWeight: selected ? typography.weights.bold : typography.weights.medium,
-          },
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      <Row gap={6}>
+        {icon && <Ionicons name={icon} size={15} color={fg} />}
+        {selected && !icon && <Ionicons name="checkmark" size={14} color={fg} />}
+        <AppText variant="bodySm" weight={selected ? 'extrabold' : 'semibold'} color={fg}>
+          {label}
+        </AppText>
+      </Row>
+    </PressableScale>
   );
 };
-
-const styles = StyleSheet.create({
-  chip: {
-    borderWidth: 1.5,
-    alignSelf: 'flex-start',
-    marginEnd: 6,
-    marginBottom: 6,
-  },
-  text: {
-    textAlign: 'center',
-  },
-});

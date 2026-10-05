@@ -1,18 +1,24 @@
-import React, { useState } from 'react';
-import {
-  Pressable,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ViewStyle,
-  TextStyle,
-  View,
-  StyleProp,
-} from 'react-native';
-import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
+import React from 'react';
+import { ActivityIndicator, StyleProp, TextStyle, View, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme, alpha, lighten } from '../../theme';
+import { PressableScale } from './PressableScale';
+import { GradientFill } from './GradientFill';
+import { AppText } from './AppText';
+import { Row } from './Row';
+import { IconName, isIconName } from './types';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'danger' | 'ghost' | 'gold';
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'accent'
+  | 'danger'
+  | 'ghost'
+  | 'gold'
+  | 'soft'
+  | 'outline'
+  | 'success'
+  | 'dangerSoft';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps {
@@ -22,12 +28,22 @@ interface ButtonProps {
   size?: ButtonSize;
   disabled?: boolean;
   loading?: boolean;
-  icon?: React.ReactNode;
+  /** An Ionicons name or a custom node. */
+  icon?: React.ReactNode | IconName;
   iconPosition?: 'left' | 'right';
   style?: StyleProp<ViewStyle>;
-  textStyle?: TextStyle;
+  textStyle?: StyleProp<TextStyle>;
   fullWidth?: boolean;
+  haptic?: boolean;
+  /** Custom base colour for solid variants (gradient is derived from it). */
+  color?: string;
 }
+
+const SIZES = {
+  sm: { height: 38, padH: 14, font: 13, icon: 16, gap: 6 },
+  md: { height: 50, padH: 18, font: 15, icon: 19, gap: 8 },
+  lg: { height: 58, padH: 24, font: 16, icon: 21, gap: 10 },
+} as const;
 
 export const Button: React.FC<ButtonProps> = ({
   title,
@@ -41,130 +57,102 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
   fullWidth = false,
+  haptic = true,
+  color,
 }) => {
-  const { colors, typography, radius, spacing } = useTheme();
-  const rtl = isRTL();
-
-  // Determine colors based on variant
-  let bgColor = colors.primary;
-  let textColor = '#FFFFFF';
-  let borderColor = 'transparent';
-
-  if (variant === 'secondary') {
-    bgColor = colors.secondary;
-    textColor = '#FFFFFF';
-  } else if (variant === 'accent') {
-    bgColor = colors.accent;
-    textColor = '#FFFFFF';
-  } else if (variant === 'danger') {
-    bgColor = colors.error;
-    textColor = '#FFFFFF';
-  } else if (variant === 'gold') {
-    bgColor = colors.gold;
-    textColor = '#FFFFFF';
-  } else if (variant === 'ghost') {
-    bgColor = colors.surface;
-    borderColor = colors.border;
-    textColor = colors.text;
-  }
-
-  // Sizing
-  let paddingVertical = spacing.md;
-  let paddingHorizontal = spacing.lg;
-  let fontSize = typography.sizes.md;
-
-  if (size === 'sm') {
-    paddingVertical = 8;
-    paddingHorizontal = spacing.md;
-    fontSize = typography.sizes.sm;
-  } else if (size === 'lg') {
-    paddingVertical = 14;
-    paddingHorizontal = spacing.xl;
-    fontSize = typography.sizes.md;
-  }
-
+  const { colors, shape, shadow, heroGradient, tone } = useTheme();
+  const s = SIZES[size];
   const isDisabled = disabled || loading;
 
+  // Solid variants render a gradient; tinted ones a flat soft fill.
+  const solid: Partial<Record<ButtonVariant, [string, string]>> = {
+    primary: heroGradient,
+    secondary: [lighten(colors.secondary, 0.12), colors.secondary],
+    accent: [lighten(colors.accent, 0.15), colors.accent],
+    danger: [lighten(colors.error, 0.12), colors.error],
+    gold: [lighten(colors.gold, 0.15), colors.gold],
+    success: [tone('green').fg, tone('green').solid],
+  };
+  const gradient = color && solid[variant] ? ([lighten(color, 0.15), color] as [string, string]) : solid[variant];
+
+  let fg = '#FFFFFF';
+  let bg = 'transparent';
+  let border = 'transparent';
+  if (variant === 'ghost') {
+    fg = colors.text;
+    bg = colors.surfaceRaised;
+    border = colors.border;
+  } else if (variant === 'soft') {
+    fg = colors.primary;
+    bg = alpha(colors.primary, 0.12);
+  } else if (variant === 'dangerSoft') {
+    fg = colors.error;
+    bg = alpha(colors.error, 0.12);
+  } else if (variant === 'outline') {
+    fg = colors.primary;
+    border = alpha(colors.primary, 0.45);
+  }
+  if (isDisabled) {
+    fg = colors.textMuted;
+    bg = colors.surface;
+    border = colors.border;
+  }
+
+  const renderIcon = () => {
+    if (!icon) return null;
+    if (isIconName(icon)) return <Ionicons name={icon} size={s.icon} color={fg} />;
+    return icon;
+  };
+  const iconNode = renderIcon();
+  const radius = size === 'sm' ? 12 : shape.button;
+
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.baseButton,
+      haptic={haptic}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      style={[
         {
-          backgroundColor: isDisabled ? colors.border : bgColor,
-          borderColor: isDisabled ? colors.borderDarker : borderColor,
-          borderWidth: variant === 'ghost' ? 1 : 0,
-          borderRadius: 14,
-          paddingVertical,
-          paddingHorizontal,
-          opacity: pressed && !isDisabled ? 0.88 : 1,
-          transform: [{ scale: pressed && !isDisabled ? 0.98 : 1 }],
-          width: fullWidth ? '100%' : undefined,
-          ...(variant !== 'ghost' && !isDisabled
-            ? {
-                shadowColor: bgColor,
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.16,
-                shadowRadius: 8,
-                elevation: 2,
-              }
-            : {}),
+          minHeight: s.height,
+          paddingHorizontal: title ? s.padH : 0,
+          minWidth: title ? undefined : s.height,
+          borderRadius: radius,
+          backgroundColor: gradient && !isDisabled ? undefined : bg,
+          borderWidth: border === 'transparent' ? 0 : 1.5,
+          borderColor: border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          alignSelf: fullWidth ? 'stretch' : undefined,
         },
+        gradient && !isDisabled ? shadow(2, gradient[1]) : null,
         style,
       ]}
     >
+      {gradient && !isDisabled && <GradientFill colors={gradient} direction="horizontal" radius={radius} />}
       {loading ? (
-        <ActivityIndicator color={textColor} size="small" />
+        <ActivityIndicator color={gradient ? '#FFFFFF' : colors.primary} size="small" />
       ) : (
-        <View
-          style={[
-            styles.contentRow,
-            { flexDirection: rtl ? 'row-reverse' : 'row' },
-          ]}
-        >
-          {icon && iconPosition === 'left' && <View style={styles.iconContainer}>{icon}</View>}
+        <Row gap={s.gap} justify="center">
+          {iconPosition === 'left' && iconNode && <View>{iconNode}</View>}
           {!!title && (
-            <Text
-              style={[
-                styles.baseText,
-                {
-                  color: isDisabled ? colors.textMuted : textColor,
-                  fontSize,
-                  fontWeight: typography.weights.bold,
-                  letterSpacing: 0.2,
-                },
-                textStyle,
-              ]}
+            <AppText
+              variant="bodyStrong"
+              weight="extrabold"
+              size={s.font}
+              color={fg}
+              align="center"
+              numberOfLines={1}
+              style={textStyle}
             >
               {title}
-            </Text>
+            </AppText>
           )}
-          {icon && iconPosition === 'right' && <View style={styles.iconContainer}>{icon}</View>}
-        </View>
+          {iconPosition === 'right' && iconNode && <View>{iconNode}</View>}
+        </Row>
       )}
-    </Pressable>
+    </PressableScale>
   );
 };
-
-const styles = StyleSheet.create({
-  baseButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderTopWidth: 0,
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
-  },
-  contentRow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  baseText: {
-    textAlign: 'center',
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

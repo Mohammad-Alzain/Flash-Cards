@@ -1,6 +1,5 @@
 import { cardRepository } from '../db/repositories/cardRepository';
 import { settingsRepository } from '../db/repositories/settingsRepository';
-import { statsRepository } from '../db/repositories/statsRepository';
 import { queueBuilder } from '../scheduler/queueBuilder';
 import { Rating } from '../scheduler/types';
 import { cleanTextForQuiz } from '../quiz/generator';
@@ -13,7 +12,11 @@ import {
   ACTION_PODCAST_STOP,
 } from '../audio/podcastPlayerService';
 
+import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import i18n from '../../i18n';
+
+export const REMINDER_CHANNEL_ID = 'study-reminders';
 
 let Notifications: any = null;
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -25,6 +28,8 @@ if (!isExpoGo) {
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
           shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
           shouldPlaySound: true,
           shouldSetBadge: false,
         }),
@@ -213,59 +218,89 @@ export const notificationService = {
     }
   },
 
+  /** True when local notifications can be scheduled in this build (not Expo Go / web). */
+  isSupported(): boolean {
+    return !!Notifications && typeof Notifications.scheduleNotificationAsync === 'function';
+  },
+
+  /** Android 8+ only delivers notifications through a channel; reminders get a high-importance one. */
+  async ensureReminderChannel(): Promise<void> {
+    if (Platform.OS !== 'android' || !Notifications?.setNotificationChannelAsync) return;
+    await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
+      name: i18n.t('reminders.channel_name'),
+      description: i18n.t('reminders.channel_desc'),
+      importance: Notifications.AndroidImportance?.HIGH ?? 4,
+      sound: 'default',
+      vibrationPattern: [0, 250, 150, 250],
+      lightColor: '#4F46E5',
+    });
+  },
+
   /**
-   * Schedules a daily recurring reminder at target hour & minute
+   * Schedules a repeating study reminder. Returns one id per trigger:
+   * a single DAILY trigger, or one WEEKLY trigger per selected weekday.
    */
-  async scheduleDailyReminder(
-    scheduleId: string,
-    timeOfDay: string, // "08:30"
-    deckId?: string | null
-  ): Promise<string | null> {
-    const hasPermission = await this.requestPermissions();
-    if (!hasPermission) return null;
+  async scheduleReminder(params: {
+    scheduleId: string;
+    hour: number;
+    minute: number;
+    weekdays: number[] | 'daily';
+    deckId?: string | null;
+  }): Promise<string[]> {
+    if (!this.isSupported()) throw new Error('NOTIFICATIONS_UNSUPPORTED');
+    if (!(await this.requestPermissions())) throw new Error('NOTIFICATIONS_PERMISSION_DENIED');
+    await this.ensureReminderChannel();
 
-    const [hourStr, minStr] = timeOfDay.split(':');
-    const hour = parseInt(hourStr, 10) || 8;
-    const minute = parseInt(minStr, 10) || 0;
+    const { SchedulableTriggerInputTypes } = Notifications;
+    const content = {
+      title: `⏰ ${i18n.t('reminders.notif_title')}`,
+      body: i18n.t('reminders.notif_body'),
+      data: { scheduleId: params.scheduleId, deckId: params.deckId ?? null, kind: 'study_reminder' },
+      sound: true,
+    };
+    const base = { hour: params.hour, minute: params.minute, channelId: REMINDER_CHANNEL_ID };
 
-    // Check due cards count
-    const globalCounts = await cardRepository.getGlobalCounts();
-    const count = globalCounts.due;
-
-    // Smart reminder check: skip if goal is already met today
-    const todayStats = await statsRepository.getTodaySummary();
-    if (todayStats.totalDone >= todayStats.dailyGoal && todayStats.dailyGoal > 0) {
-      console.log('[Notification] Daily goal already met. Skipping reminder.');
-    }
-
-    const title = count > 0 ? `${count} cards are waiting for you!` : `Daily Flashcards Review`;
-    const body =
-      count > 0
-        ? `Keep your streak alive! Complete your reviews today.`
-        : `Start a quick session or learn new words today!`;
-
-    if (!Notifications || typeof Notifications.scheduleNotificationAsync !== 'function') {
-      return null;
-    }
-
-    try {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: { deckId, scheduleId },
-          sound: true,
-        },
-        trigger: {
-          hour,
-          minute,
-          repeats: true,
-        },
+    if (params.weekdays === 'daily') {
+      const id = await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: { type: SchedulableTriggerInputTypes.DAILY, ...base },
       });
+      return [id];
+    }
+    const ids: string[] = [];
+    for (const day of params.weekdays) {
+      ids.push(
+        await Notifications.scheduleNotificationAsync({
+          content,
+          // expo weekday: 1 = Sunday … 7 = Saturday; JS getDay(): 0 = Sunday.
+          trigger: { type: SchedulableTriggerInputTypes.WEEKLY, weekday: day + 1, ...base },
+        })
+      );
+    }
+    return ids;
+  },
 
-      return notificationId;
+  /** Identifiers of every notification currently scheduled with the OS. */
+  async getScheduledIds(): Promise<Set<string>> {
+    if (!Notifications?.getAllScheduledNotificationsAsync) return new Set();
+    try {
+      const all = await Notifications.getAllScheduledNotificationsAsync();
+      return new Set(all.map((n: any) => n.identifier));
     } catch {
-      return null;
+      return new Set();
+    }
+  },
+
+  /** Scheduled study reminders as { notificationId, scheduleId }. */
+  async getScheduledReminders(): Promise<{ id: string; scheduleId: string }[]> {
+    if (!Notifications?.getAllScheduledNotificationsAsync) return [];
+    try {
+      const all = await Notifications.getAllScheduledNotificationsAsync();
+      return all
+        .filter((n: any) => n.content?.data?.kind === 'study_reminder' || n.content?.data?.scheduleId)
+        .map((n: any) => ({ id: n.identifier, scheduleId: n.content.data.scheduleId }));
+    } catch {
+      return [];
     }
   },
 

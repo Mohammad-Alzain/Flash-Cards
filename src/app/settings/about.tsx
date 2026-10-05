@@ -1,135 +1,61 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../theme';
-import { isRTL } from '../../i18n';
-import { Header, Card, Badge } from '../../components/ui';
+import { ToneName } from '../../theme';
+import { Screen, Header, Card, Row, AppText, Badge, IconTile, SectionHeader, ListGroup, ListItem, IconName } from '../../components/ui';
 import { Logo } from '../../components/brand/Logo';
+import { Illustration } from '../../components/illustrations';
+
+const FEATURES: { key: string; icon: IconName; tone: ToneName }[] = [
+  { key: 'f_srs', icon: 'hardware-chip', tone: 'indigo' },
+  { key: 'f_anki', icon: 'albums', tone: 'sky' },
+  { key: 'f_quiz', icon: 'sparkles', tone: 'violet' },
+  { key: 'f_lock', icon: 'lock-closed', tone: 'rose' },
+  { key: 'f_tools', icon: 'brush', tone: 'amber' },
+];
 
 export default function AboutSettingsScreen() {
   const router = useRouter();
-  const { colors, typography, spacing } = useTheme();
   const { t } = useTranslation();
-  const rtl = isRTL();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <Header
-        title={t('settings.about')}
-        onBack={() => router.back()}
-      />
+    <Screen decor header={<Header title={t('settings.about')} icon="information-circle" iconTone="sky" onBack={() => router.back()} />}>
+      <Card style={{ alignItems: 'center', paddingVertical: 22, marginBottom: 14 }}>
+        <Logo variant="mark" size={72} style={{ marginBottom: 12 }} />
+        <AppText variant="h2" align="center">
+          {t('settings.app_name')}
+        </AppText>
+        <Badge label={t('settings.version')} icon="pricetag" variant="primary" style={{ alignSelf: 'center', marginTop: 8 }} />
+      </Card>
 
-      <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
-        {/* App Branding Card */}
-        <Card style={[styles.brandCard, { borderColor: colors.primary, marginBottom: spacing.lg }]}>
-          <Logo variant="mark" size={68} style={{ marginBottom: 14 }} />
-
-          <Text style={[styles.appName, { color: colors.text }]}>
-            {t('settings.app_name')}
-          </Text>
-
-          <Badge label={t('settings.version')} variant="neutral" style={{ marginTop: 6 }} />
-
-          <View style={[styles.offlineBanner, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, marginTop: 16, flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
-            <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
-            <Text style={[styles.offlineTitle, { color: colors.text }]}>
+      <Card variant="tinted" tone="green" style={{ marginBottom: 22 }}>
+        <Row gap={12} align="flex-start">
+          <IconTile icon="shield-checkmark" tone="green" size={42} variant="solid" />
+          <View style={{ flex: 1 }}>
+            <AppText variant="title" weight="extrabold">
               {t('settings.offline_badge')}
-            </Text>
+            </AppText>
+            <AppText variant="bodySm" color="textSecondary" style={{ marginTop: 2 }}>
+              {t('settings.offline_desc')}
+            </AppText>
           </View>
+        </Row>
+      </Card>
 
-          <Text style={[styles.offlineDesc, { color: colors.textSecondary, marginTop: 8 }]}>
-            {t('settings.offline_desc')}
-          </Text>
-        </Card>
+      <SectionHeader title={t('about.capabilities')} icon="rocket" tone="violet" />
+      <ListGroup>
+        {FEATURES.map((f) => (
+          <ListItem key={f.key} icon={f.icon} tone={f.tone} title={t(`about.${f.key}`)} />
+        ))}
+      </ListGroup>
 
-        {/* Features Checklist */}
-        <Card style={[styles.featuresCard, { marginBottom: spacing.lg }]}>
-          <Text style={[styles.sectionHeading, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
-            {rtl ? 'الميزات والقدرات المدعومة' : 'Core Capabilities'}
-          </Text>
-
-          {[
-            rtl ? 'جدولة FSRS المتقدمة و SM-2 القياسية' : 'Advanced FSRS & Classic SM-2 Schedulers',
-            rtl ? 'توافق كامل مع قوالب Anki واستيراد APKG' : 'Full Anki Template Engine & APKG Import',
-            rtl ? 'وضع الاختبارات التفاعلية ودفتر الأخطاء' : 'Interactive Quizzes & Mistakes Notebook',
-            rtl ? 'أمان وقفل برمز PIN وتشفير محلي' : 'Local PIN App Lock & Privacy',
-            rtl ? 'سبورة للكتابة باليد ونطق صوتي TTS' : 'Handwriting Whiteboard & TTS Audio',
-          ].map((item, idx) => (
-            <View key={idx} style={[styles.featureRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
-              <Ionicons
-                name="checkmark-circle"
-                size={18}
-                color={colors.primary}
-              />
-              <Text style={[styles.featureText, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
-                {item}
-              </Text>
-            </View>
-          ))}
-        </Card>
-      </ScrollView>
-    </SafeAreaView>
+      <View style={{ alignItems: 'center' }}>
+        <Illustration name="welcome" size={170} />
+        <AppText variant="caption" color="textMuted" align="center">
+          {t('about.made_with')}
+        </AppText>
+      </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  content: {},
-  brandCard: {
-    alignItems: 'center',
-    padding: 24,
-    borderWidth: 2,
-  },
-  iconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3B82F615',
-    marginBottom: 12,
-  },
-  appName: {
-    fontSize: 20,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  offlineBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  offlineTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  offlineDesc: {
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  featuresCard: {
-    padding: 16,
-  },
-  sectionHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  featureRow: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  featureText: {
-    fontSize: 13,
-    flex: 1,
-  },
-});

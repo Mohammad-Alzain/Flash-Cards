@@ -1,166 +1,84 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../theme';
+import { View, ViewStyle, StyleProp } from 'react-native';
+import { Illustration, IllustrationName } from '../illustrations';
 import { Button } from './Button';
-import {
-  Logo,
-  EmptyStudyIllustration,
-  EmptySearchIllustration,
-  SessionCompleteIllustration,
-  VaultBackupIllustration,
-} from '../brand';
+import { AppText } from './AppText';
+import { IconTile } from './IconTile';
+import { IconName, isIconName } from './types';
 
-export type EmptyIllustrationType = 'study' | 'search' | 'complete' | 'backup';
+/** Legacy illustration keys mapped to the new mascot scenes. */
+export type EmptyIllustrationType = 'study' | 'search' | 'complete' | 'backup' | IllustrationName;
+
+const LEGACY: Record<string, IllustrationName> = {
+  study: 'empty-decks',
+  complete: 'all-done',
+};
 
 interface EmptyStateProps {
-  icon?: keyof typeof Ionicons.glyphMap | React.ReactNode | string;
+  icon?: IconName | React.ReactNode | string;
   branded?: boolean;
   illustration?: EmptyIllustrationType;
   title: string;
   description: string;
   actionTitle?: string;
+  actionIcon?: IconName;
   onAction?: () => void;
-  style?: ViewStyle;
+  secondaryTitle?: string;
+  onSecondary?: () => void;
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   icon,
-  branded = false,
+  branded: _branded,
   illustration,
   title,
   description,
   actionTitle,
+  actionIcon,
   onAction,
+  secondaryTitle,
+  onSecondary,
+  compact = false,
   style,
 }) => {
-  const { colors, typography, spacing } = useTheme();
-
-  const isIllustrated = branded || !!illustration || icon === 'branded';
-
   const renderVisual = () => {
-    if (illustration === 'search') {
-      return <EmptySearchIllustration size={140} />;
+    if (illustration) {
+      return <Illustration name={LEGACY[illustration] ?? (illustration as IllustrationName)} size={compact ? 150 : 210} />;
     }
-    if (illustration === 'complete') {
-      return <SessionCompleteIllustration size={140} />;
+    if (isIconName(icon)) {
+      return <IconTile icon={icon} tone="indigo" size={72} shape="circle" />;
     }
-    if (illustration === 'backup') {
-      return <VaultBackupIllustration size={130} />;
+    if (typeof icon === 'string' && icon !== 'branded') {
+      return <AppText size={44}>{icon}</AppText>;
     }
-    if (branded || illustration === 'study' || icon === 'branded') {
-      return <EmptyStudyIllustration size={150} />;
-    }
-
-    if (typeof icon === 'string') {
-      if (icon in Ionicons.glyphMap) {
-        return (
-          <Ionicons
-            name={icon as keyof typeof Ionicons.glyphMap}
-            size={36}
-            color={colors.primary}
-          />
-        );
-      }
-      return <Text style={styles.icon}>{icon}</Text>;
-    }
-
-    if (icon) {
-      return icon;
-    }
-
-    // Default to branded study illustration
-    return <EmptyStudyIllustration size={150} />;
+    if (icon && typeof icon !== 'string') return icon;
+    return <Illustration name="empty-decks" size={compact ? 150 : 210} />;
   };
 
   return (
-    <View style={[styles.container, style]}>
-      {isIllustrated || !icon ? (
-        <View style={styles.illustrationWrapper}>
-          {renderVisual()}
-        </View>
-      ) : (
-        <View
-          style={[
-            styles.iconContainer,
-            {
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          {renderVisual()}
-        </View>
-      )}
-
-      <Text
-        style={[
-          styles.title,
-          {
-            color: colors.text,
-            fontSize: typography.sizes.xl,
-            fontWeight: typography.weights.bold,
-            marginBottom: spacing.xs,
-          },
-        ]}
-      >
+    <View style={[{ alignItems: 'center', paddingVertical: compact ? 16 : 32, paddingHorizontal: 24 }, style]}>
+      <View style={{ marginBottom: 14 }}>{renderVisual()}</View>
+      <AppText variant="h2" align="center" style={{ marginBottom: 6 }}>
         {title}
-      </Text>
-
-      <Text
-        style={[
-          styles.description,
-          {
-            color: colors.textSecondary,
-            fontSize: typography.sizes.md,
-            marginBottom: spacing.xl,
-          },
-        ]}
-      >
+      </AppText>
+      <AppText variant="body" color="textSecondary" align="center" style={{ maxWidth: 320, marginBottom: 20 }}>
         {description}
-      </Text>
-
+      </AppText>
       {actionTitle && onAction && (
+        <Button title={actionTitle} onPress={onAction} icon={actionIcon} size="md" style={{ minWidth: 180 }} />
+      )}
+      {secondaryTitle && onSecondary && (
         <Button
-          title={actionTitle}
-          onPress={onAction}
-          variant="primary"
-          size="md"
+          title={secondaryTitle}
+          onPress={onSecondary}
+          variant="soft"
+          size="sm"
+          style={{ marginTop: 10 }}
         />
       )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-  },
-  illustrationWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  icon: {
-    fontSize: 36,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  description: {
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-});

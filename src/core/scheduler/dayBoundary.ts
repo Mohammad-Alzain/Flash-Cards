@@ -20,6 +20,12 @@ export function getDateStringForRollover(now = Date.now(), rolloverHour = 4): st
   return `${year}-${month}-${day}`;
 }
 
+export function getDayStartTimestamp(now = Date.now(), rolloverHour = 4): number {
+  const d = getRolloverDate(now, rolloverHour);
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), rolloverHour, 0, 0, 0);
+  return start.getTime();
+}
+
 export function getDayEndTimestamp(now = Date.now(), rolloverHour = 4): number {
   const d = getRolloverDate(now, rolloverHour);
   // Next day at rolloverHour:00:00.000

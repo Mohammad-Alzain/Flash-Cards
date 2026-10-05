@@ -23,8 +23,6 @@ import { StudyTopBar } from '../../features/study/components/StudyTopBar';
 import { StudyStateView } from '../../features/study/components/StudyStateView';
 import { StudyCardModals } from '../../features/study/components/StudyCardModals';
 
-/** New cards introduced per learn session. */
-const LEARN_BATCH_SIZE = 15;
 /** XP awarded per learned card (shown on the completion screen). */
 const XP_PER_LEARN = 12;
 
@@ -39,6 +37,8 @@ export default function LearnNewScreen() {
   const [isFlipped, setIsFlipped] = useState(true); // Learn mode shows the full back/explanation side
   const [learnedCount, setLearnedCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState(20);
   const [editVisible, setEditVisible] = useState(false);
   const [aiVisible, setAiVisible] = useState(false);
   const [activeDeckId, setActiveDeckId] = useState<string | undefined>(deckId);
@@ -58,8 +58,14 @@ export default function LearnNewScreen() {
       if (cancelled) return;
       setActiveDeckId(resolvedDeckId);
       if (resolvedDeckId) await deckRepository.setLastStudiedDeckId(resolvedDeckId);
-      const items = await queueBuilder.buildLearnQueue(resolvedDeckId, LEARN_BATCH_SIZE);
+
+      const [{ remaining, dailyLimit: targetLimit, learnedToday }, items] = await Promise.all([
+        queueBuilder.getRemainingNewCardsToday(resolvedDeckId),
+        queueBuilder.buildLearnQueue(resolvedDeckId),
+      ]);
       if (cancelled) return;
+      setDailyLimit(targetLimit);
+      setDailyLimitReached(learnedToday >= targetLimit);
       setQueue(items);
       setLoading(false);
       startTimeRef.current = Date.now();
@@ -88,11 +94,20 @@ export default function LearnNewScreen() {
     audioService.stop();
 
     const duration = Date.now() - startTimeRef.current;
-    await queueBuilder.answerCard(currentCard, rating, duration);
+    const next = await queueBuilder.answerCard(currentCard, rating, duration);
     setLearnedCount((prev) => prev + 1);
 
     if (rating === Rating.Again) {
-      setQueue((prev) => [...prev, currentCard]);
+      const updatedCard: StudyCardItem = {
+        ...currentCard,
+        state: next.cardState,
+        reps: next.reps,
+        lapses: next.lapses,
+        ease_factor: next.easeFactor,
+        interval_days: next.intervalDays,
+        due: next.due,
+      };
+      setQueue((prev) => [...prev, updatedCard]);
     }
 
     if (currentIndex + 1 < queue.length || rating === Rating.Again) {
@@ -110,11 +125,16 @@ export default function LearnNewScreen() {
   if (loading) return <StudyStateView loading />;
 
   if (!currentCard || currentIndex >= queue.length) {
+    const title = dailyLimitReached ? t('study.daily_limit_reached_title') : t('study.no_new_title');
+    const description = dailyLimitReached
+      ? t('study.daily_limit_reached_desc', { count: dailyLimit })
+      : t('study.no_new_desc');
+
     return (
       <StudyStateView
         illustration="learn"
-        title={t('study.no_new_title')}
-        description={t('study.no_new_desc')}
+        title={title}
+        description={description}
         onAction={() => router.replace('/(tabs)')}
       />
     );

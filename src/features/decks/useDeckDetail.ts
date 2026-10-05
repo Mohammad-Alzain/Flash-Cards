@@ -10,21 +10,25 @@ const CARD_PREVIEW_LIMIT = 40;
 interface DeckDetail {
   deck: DeckWithCounts | null;
   studiedCount: number;
+  remainingNewCards: number;
 }
 
 /** Loads a deck with its counts on focus and remembers it as the last studied deck. */
 export const useDeckDetail = (id: string | undefined) =>
   useFocusData<DeckDetail>(
     async () => {
-      if (!id) return { deck: null, studiedCount: 0 };
+      if (!id) return { deck: null, studiedCount: 0, remainingNewCards: 0 };
       const all = await deckRepository.getAllWithCounts();
       const deck = all.find((d) => d.id === id) ?? null;
-      if (!deck) return { deck: null, studiedCount: 0 };
-      const studiedCount = await queueBuilder.getStudiedCardsCount(deck.id);
+      if (!deck) return { deck: null, studiedCount: 0, remainingNewCards: 0 };
+      const [studiedCount, { remaining }] = await Promise.all([
+        queueBuilder.getStudiedCardsCount(deck.id),
+        queueBuilder.getRemainingNewCardsToday(deck.id),
+      ]);
       deckRepository.setLastStudiedDeckId(deck.id).catch(() => {});
-      return { deck, studiedCount };
+      return { deck, studiedCount, remainingNewCards: remaining };
     },
-    { deck: null, studiedCount: 0 },
+    { deck: null, studiedCount: 0, remainingNewCards: 0 },
     'deck'
   );
 

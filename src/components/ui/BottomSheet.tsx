@@ -41,7 +41,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(8,10,25,0.5)' }} onPress={onClose} accessibilityLabel="Close" />
         <View
           style={[

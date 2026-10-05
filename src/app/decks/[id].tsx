@@ -41,7 +41,7 @@ export default function DeckDetailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { data, loading, reload } = useDeckDetail(id);
-  const { deck, studiedCount } = data;
+  const { deck, studiedCount, remainingNewCards } = data;
 
   const [tab, setTab] = useState<DeckTab>('study');
   const [cardSearch, setCardSearch] = useState('');
@@ -104,7 +104,8 @@ export default function DeckDetailScreen() {
   };
 
   const hasDue = deck.due_count > 0;
-  const hasNew = deck.new_count > 0;
+  const effectiveNew = Math.min(deck.new_count, remainingNewCards ?? deck.new_count);
+  const hasNew = effectiveNew > 0;
 
   const studyTab = (
     <>
@@ -120,7 +121,7 @@ export default function DeckDetailScreen() {
         />
       ) : hasNew ? (
         <Button
-          title={`${t('home.start_learning')} (${deck.new_count})`}
+          title={`${t('home.start_learning')} (${effectiveNew})`}
           icon="school"
           size="lg"
           fullWidth
@@ -157,7 +158,7 @@ export default function DeckDetailScreen() {
           <ListItem
             icon="school"
             tone="blue"
-            title={t('deck_detail.learn_title', { count: deck.new_count })}
+            title={t('deck_detail.learn_title', { count: effectiveNew })}
             subtitle={t('deck_detail.learn_desc')}
             onPress={() => router.push(`/study/learn?deckId=${deck.id}`)}
           />

@@ -1,5 +1,6 @@
 import { getDatabase } from '../connection';
 import { settingsRepository } from './settingsRepository';
+import { getDateStringForRollover } from '../../scheduler/dayBoundary';
 
 export interface TodayStatsSummary {
   newDone: number;
@@ -31,7 +32,9 @@ export interface CardMaturityBreakdown {
 export const statsRepository = {
   async getTodaySummary(): Promise<TodayStatsSummary> {
     const db = await getDatabase();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const rolloverStr = await settingsRepository.get('rollover_hour', '4');
+    const rolloverHour = parseInt(rolloverStr, 10) || 4;
+    const todayStr = getDateStringForRollover(Date.now(), rolloverHour);
 
     const row = await db.getFirstAsync<any>(
       `SELECT 

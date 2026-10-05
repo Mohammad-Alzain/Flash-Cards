@@ -9,7 +9,9 @@ import {
 } from './types';
 import { calculateSM2NextReview } from './sm2';
 import { calculateFSRSNextReview } from './fsrs';
+import { settingsRepository } from '../db/repositories/settingsRepository';
 import {
+  getDayStartTimestamp,
   getDayEndTimestamp,
   getDateStringForRollover,
   getRolloverDate,
@@ -65,10 +67,11 @@ export const queueBuilder = {
       deckParams.push(...allDeckIds);
     }
 
-    let reviewLimit = 100;
+    const globalReviewSetting = await settingsRepository.get('daily_review_limit', '100');
+    let reviewLimit = parseInt(globalReviewSetting, 10) || 100;
     if (deckId) {
       const deck = await deckRepository.getById(deckId);
-      if (deck && deck.reviews_per_day) {
+      if (deck && deck.reviews_per_day && deck.reviews_per_day !== 100) {
         reviewLimit = deck.reviews_per_day;
       }
     }
@@ -164,15 +167,106 @@ export const queueBuilder = {
   },
 
   /**
+   * Returns count of distinct new cards introduced/studied today (since rollover)
+   */
+  async getNewCardsLearnedToday(deckId?: string, rolloverHour?: number): Promise<number> {
+    const db = await getDatabase();
+    const now = Date.now();
+    let effectiveRollover = rolloverHour;
+    if (effectiveRollover === undefined) {
+      const rolloverStr = await settingsRepository.get('rollover_hour', '4');
+      effectiveRollover = parseInt(rolloverStr, 10) || 4;
+    }
+    const dayStart = getDayStartTimestamp(now, effectiveRollover);
+    const dayEnd = getDayEndTimestamp(now, effectiveRollover);
+
+    let sql = `
+      SELECT COUNT(DISTINCT card_id) as count
+      FROM review_logs
+      WHERE state_before = 0
+        AND reviewed_at >= ? AND reviewed_at < ?
+    `;
+    const params: any[] = [dayStart, dayEnd];
+
+    let targetDeckId = deckId;
+    if (!targetDeckId) {
+      targetDeckId = (await deckRepository.getLastStudiedDeckId()) || undefined;
+    }
+
+    if (targetDeckId) {
+      const allDeckIds = await deckRepository.getDeckAndDescendantIds(targetDeckId);
+      if (allDeckIds.length > 0) {
+        const placeholders = allDeckIds.map(() => '?').join(',');
+        sql += ` AND deck_id IN (${placeholders})`;
+        params.push(...allDeckIds);
+      }
+    }
+
+    const row = await db.getFirstAsync<{ count: number }>(sql, ...params);
+    return Number(row?.count || 0);
+  },
+
+  /**
+   * Resolves the configured daily new cards limit for a deck or globally
+   */
+  async getDailyNewLimit(deckId?: string): Promise<number> {
+    const globalSetting = await settingsRepository.get('daily_new_limit', '20');
+    let limit = parseInt(globalSetting, 10) || 20;
+
+    let targetDeckId = deckId;
+    if (!targetDeckId) {
+      targetDeckId = (await deckRepository.getLastStudiedDeckId()) || undefined;
+    }
+
+    if (targetDeckId) {
+      const deck = await deckRepository.getById(targetDeckId);
+      if (deck && typeof deck.new_per_day === 'number' && deck.new_per_day > 0 && deck.new_per_day !== 20) {
+        limit = deck.new_per_day;
+      }
+    }
+
+    return Math.max(1, limit);
+  },
+
+  /**
+   * Returns remaining new cards quota for today along with the daily limit and learned count
+   */
+  async getRemainingNewCardsToday(
+    deckId?: string,
+    rolloverHour?: number
+  ): Promise<{ remaining: number; dailyLimit: number; learnedToday: number }> {
+    const [dailyLimit, learnedToday] = await Promise.all([
+      this.getDailyNewLimit(deckId),
+      this.getNewCardsLearnedToday(deckId, rolloverHour),
+    ]);
+    const remaining = Math.max(0, dailyLimit - learnedToday);
+    return { remaining, dailyLimit, learnedToday };
+  },
+
+  /**
    * Fetches new cards queue for Learn New mode
    */
   async buildLearnQueue(
     deckId?: string,
-    limit = 20,
+    limit?: number,
     options: SchedulerOptions = DEFAULT_SCHEDULER_OPTIONS
   ): Promise<StudyCardItem[]> {
     const db = await getDatabase();
     const now = Date.now();
+
+    let targetDeckId = deckId;
+    if (!targetDeckId) {
+      targetDeckId = (await deckRepository.getLastStudiedDeckId()) || undefined;
+    }
+
+    let effectiveLimit = limit;
+    if (effectiveLimit === undefined) {
+      const { remaining } = await this.getRemainingNewCardsToday(targetDeckId, options.rolloverHour);
+      if (remaining <= 0) {
+        return [];
+      }
+      effectiveLimit = remaining;
+    }
 
     let sql = `
       SELECT 
@@ -193,11 +287,6 @@ export const queueBuilder = {
     `;
     const params: any[] = [now];
 
-    let targetDeckId = deckId;
-    if (!targetDeckId) {
-      targetDeckId = (await deckRepository.getLastStudiedDeckId()) || undefined;
-    }
-
     if (targetDeckId) {
       const allDeckIds = await deckRepository.getDeckAndDescendantIds(targetDeckId);
       const placeholders = allDeckIds.map(() => '?').join(',');
@@ -206,7 +295,7 @@ export const queueBuilder = {
     }
 
     sql += ' ORDER BY c.created_at ASC, c.template_ord ASC LIMIT ?;';
-    params.push(limit);
+    params.push(effectiveLimit);
 
     const rows = await db.getAllAsync<any>(sql, ...params);
     const result: StudyCardItem[] = [];

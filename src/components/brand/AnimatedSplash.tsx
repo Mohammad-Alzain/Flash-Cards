@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useReducedMotion,
@@ -82,24 +83,59 @@ export const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ ready, onFinish 
     }, CHEER_AT_MS);
   };
 
+  // Cancel all Reanimated worklets when this overlay unmounts.
+  useEffect(() => {
+    return () => {
+      cancelAnimation(hop);
+      cancelAnimation(squash);
+      cancelAnimation(lift);
+      cancelAnimation(sparkle);
+      cancelAnimation(ring);
+      cancelAnimation(words);
+      cancelAnimation(fade);
+      cancelAnimation(zoom);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Exit once the app is ready and the intro has had its moment.
   useEffect(() => {
     if (!ready || exiting.current) return;
-    const tryExit = () => {
-      if (shownAt.current === null) return false;
+    const doExit = () => {
       exiting.current = true;
-      const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - shownAt.current));
+      const elapsed = shownAt.current !== null ? Date.now() - shownAt.current : 0;
+      const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
       setTimeout(() => {
+        cancelAnimation(sparkle);
+        cancelAnimation(ring);
         fade.value = withTiming(0, { duration: EXIT_MS, easing: Easing.in(Easing.quad) });
         zoom.value = withTiming(reduceMotion ? 1 : 1.15, { duration: EXIT_MS });
         setTimeout(onFinish, EXIT_MS + 20);
       }, wait);
-      return true;
     };
-    if (tryExit()) return;
-    // Ready before our first layout: retry shortly.
-    const id = setInterval(() => tryExit() && clearInterval(id), 50);
-    return () => clearInterval(id);
+    if (shownAt.current !== null) {
+      doExit();
+      return;
+    }
+    // Ready before first layout: retry until layout fires, then exit.
+    const id = setInterval(() => {
+      if (shownAt.current !== null) {
+        clearInterval(id);
+        doExit();
+      }
+    }, 50);
+    // Safety valve: force exit after 3 s even if onLayout never fires.
+    const safety = setTimeout(() => {
+      clearInterval(id);
+      if (!exiting.current) {
+        exiting.current = true;
+        onFinish();
+      }
+    }, 3000);
+    return () => {
+      clearInterval(id);
+      clearTimeout(safety);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
@@ -152,7 +188,7 @@ export const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ ready, onFinish 
 };
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: BRAND.splashBg, zIndex: 1000, elevation: 1000 },
+  root: { backgroundColor: BRAND.splashBg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   stage: { width: NATIVE_IMAGE_SIZE, height: NATIVE_IMAGE_SIZE, alignItems: 'center', justifyContent: 'center' },
   ring: {

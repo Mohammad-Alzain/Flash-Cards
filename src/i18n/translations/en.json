@@ -356,6 +356,8 @@
     "understood": "Understood · Next",
     "no_new_title": "No new cards left!",
     "no_new_desc": "You've learned every new card in this deck. Add more cards or review the due ones.",
+    "daily_limit_reached_title": "Daily limit reached!",
+    "daily_limit_reached_desc": "You've completed your new cards for today ({{count}} cards). You can increase the limit in Settings or review due cards.",
     "complete_desc": "Great effort! Every session strengthens your long-term memory.",
     "cards_learned": "Cards learned",
     "quiz_learned": "Quiz on what you learned",

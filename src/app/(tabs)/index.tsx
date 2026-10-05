@@ -36,7 +36,7 @@ export default function HomeScreen() {
   const { data, refreshing, refresh } = useHomeData();
   const { decks, counts, today } = data;
   const learn = pickLearnTarget(data);
-  const nothingToStudy = counts.total > 0 && counts.due === 0 && learn.newCount === 0 && counts.newCards === 0;
+  const nothingToStudy = counts.total > 0 && counts.due === 0 && learn.newCount === 0;
 
   const header = (
     <Row gap={12} style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 }}>
@@ -119,12 +119,12 @@ export default function HomeScreen() {
             subtitle={
               learn.deck
                 ? t('home.learn_scoped_subtitle', { deck: learn.deck.name, count: learn.newCount })
-                : t('home.learn_card_subtitle', { count: counts.newCards })
+                : t('home.learn_card_subtitle', { count: learn.newCount })
             }
             count={learn.newCount}
             icon="school"
             tone="blue"
-            disabled={learn.newCount <= 0 && counts.newCards === 0}
+            disabled={learn.newCount <= 0}
             onPress={() =>
               router.push(learn.deck ? `/study/learn?deckId=${learn.deck.id}` : '/study/learn')
             }

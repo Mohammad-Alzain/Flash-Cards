@@ -94,10 +94,25 @@ export const BrowserCardRow = React.memo<RowProps>(
               )}
             </Row>
           </View>
-          <View style={{ alignItems: 'center', gap: 6 }}>
+          <Row gap={8} align="center" style={{ flexShrink: 0, alignSelf: 'center' }}>
             {stateBadge}
-            {!multiSelect && <Ionicons name="create-outline" size={16} color={colors.textMuted} />}
-          </View>
+            {!multiSelect && (
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="create-outline" size={15} color={colors.textSecondary} />
+              </View>
+            )}
+          </Row>
         </Row>
       </PressableScale>
     );

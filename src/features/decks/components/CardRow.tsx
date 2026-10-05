@@ -55,8 +55,23 @@ export const CardRow: React.FC<{ item: BrowserCardItem; onPress: () => void }> =
             </Row>
           )}
         </View>
-        <Badge size="sm" variant={meta.variant} label={t(`deck_detail.state_${key}`)} />
-        <Ionicons name={dir.forwardIcon} size={16} color={colors.textMuted} />
+        <Row gap={8} align="center" style={{ flexShrink: 0 }}>
+          <Badge size="sm" variant={meta.variant} label={t(`deck_detail.state_${key}`)} />
+          <View
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="create-outline" size={15} color={colors.textSecondary} />
+          </View>
+        </Row>
       </Row>
     </PressableScale>
   );

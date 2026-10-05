@@ -5,6 +5,13 @@ import { queueBuilder } from '../scheduler/queueBuilder';
 import { Rating } from '../scheduler/types';
 import { cleanTextForQuiz } from '../quiz/generator';
 import { mistakesManager } from '../quiz/mistakesManager';
+import {
+  podcastPlayerService,
+  ACTION_PODCAST_PREV,
+  ACTION_PODCAST_TOGGLE,
+  ACTION_PODCAST_NEXT,
+  ACTION_PODCAST_STOP,
+} from '../audio/podcastPlayerService';
 
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
@@ -146,6 +153,25 @@ export const notificationService = {
   async handleNotificationResponse(response: any): Promise<void> {
     const actionId = response?.actionIdentifier;
     const data = response?.notification?.request?.content?.data;
+
+    // 1. Handle Podcast Player background actions
+    if (actionId === ACTION_PODCAST_PREV) {
+      podcastPlayerService.prev();
+      return;
+    }
+    if (actionId === ACTION_PODCAST_TOGGLE) {
+      podcastPlayerService.togglePlay();
+      return;
+    }
+    if (actionId === ACTION_PODCAST_NEXT) {
+      podcastPlayerService.next();
+      return;
+    }
+    if (actionId === ACTION_PODCAST_STOP) {
+      podcastPlayerService.stop();
+      return;
+    }
+
     if (!data?.cardId) return;
 
     try {

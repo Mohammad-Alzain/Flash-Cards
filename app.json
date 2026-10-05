@@ -10,34 +10,66 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#131F24"
+      "backgroundColor": "#F8FAFC",
+      "dark": {
+        "image": "./assets/splash-icon-dark.png",
+        "backgroundColor": "#000000"
+      }
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.local.flashcards"
+      "bundleIdentifier": "com.local.flashcards",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
-      "backgroundColor": "#131F24",
+      "backgroundColor": "#0B0F19",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#131F24"
+        "backgroundColor": "#131F24",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
       },
       "package": "com.local.flashcards",
       "allowBackup": false,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS"
       ],
       "androidNavigationBar": {
         "visible": "sticky-immersive"
       }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-sqlite",
       "expo-localization",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4F46E5"
+        }
+      ],
+      "expo-secure-store"
     ],
     "scheme": "flashcards",
     "experiments": {

@@ -18,6 +18,7 @@ import { ProgressBar, Badge, Button, Card } from '../../components/ui';
 import { renderCard } from '../../core/render/templateEngine';
 import { Ionicons } from '@expo/vector-icons';
 import { NoteEditorModal } from '../../components/card/NoteEditorModal';
+import { AIAssistantModal } from '../../components/card/AIAssistantModal';
 import { audioService } from '../../core/audio/audioService';
 import { settingsRepository } from '../../core/db/repositories/settingsRepository';
 import { TtsService } from '../../core/audio/ttsService';
@@ -36,6 +37,7 @@ export default function LearnNewScreen() {
   const [learnedCount, setLearnedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [aiModalVisible, setAiModalVisible] = useState(false);
   const [autoPlayAudio, setAutoPlayAudio] = useState(true);
 
   const startTimeRef = useRef<number>(Date.now());
@@ -259,7 +261,7 @@ export default function LearnNewScreen() {
         </Pressable>
 
         <View style={styles.topCenter}>
-          <View style={[styles.progressRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.progressRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <View style={{ flex: 1 }}>
               <ProgressBar progress={progress} height={7} color={colors.secondary} />
             </View>
@@ -269,8 +271,6 @@ export default function LearnNewScreen() {
                 {
                   backgroundColor: `${colors.newCards}18`,
                   borderColor: colors.newCards,
-                  marginLeft: rtl ? 0 : 8,
-                  marginRight: rtl ? 8 : 0,
                 },
               ]}
             >
@@ -281,12 +281,12 @@ export default function LearnNewScreen() {
           </View>
         </View>
 
-        <View style={[styles.topActionsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.topActionsRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 4 }]}>
           {/* Replay Sound / Audio */}
           <Pressable
             onPress={handleReplayAudio}
             hitSlop={6}
-            style={[styles.actionIconBtn, { marginRight: rtl ? 0 : 2, marginLeft: rtl ? 2 : 0 }]}
+            style={styles.actionIconBtn}
           >
             <Ionicons name="volume-high-outline" size={19} color={colors.secondary} />
           </Pressable>
@@ -298,8 +298,6 @@ export default function LearnNewScreen() {
             style={[
               styles.actionIconBtn,
               {
-                marginRight: rtl ? 0 : 2,
-                marginLeft: rtl ? 2 : 0,
                 backgroundColor: autoPlayAudio ? `${colors.secondary}22` : 'transparent',
                 borderRadius: 8,
               },
@@ -310,6 +308,15 @@ export default function LearnNewScreen() {
               size={19}
               color={autoPlayAudio ? colors.secondary : colors.textSecondary}
             />
+          </Pressable>
+
+          {/* AI Study Assistant Button */}
+          <Pressable
+            onPress={() => setAiModalVisible(true)}
+            hitSlop={6}
+            style={styles.actionIconBtn}
+          >
+            <Ionicons name="sparkles-outline" size={19} color={colors.primary} />
           </Pressable>
 
           {/* Edit Note Button */}
@@ -325,12 +332,11 @@ export default function LearnNewScreen() {
 
       {/* Stage Banner */}
       <View style={[styles.stageBanner, { backgroundColor: colors.surface }]}>
-        <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
           <Ionicons
             name="book-outline"
             size={16}
             color={colors.primary}
-            style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
           />
           <Text style={[styles.stageText, { color: colors.primary }]}>
             {rtl ? 'دراسة وفهم كلمة جديدة' : 'Learning New Card'}
@@ -405,6 +411,18 @@ export default function LearnNewScreen() {
           });
         }}
       />
+
+      {currentCard && (
+        <AIAssistantModal
+          visible={aiModalVisible}
+          onClose={() => setAiModalVisible(false)}
+          cardId={currentCard.id}
+          front={currentCard.note_fields?.Front || Object.values(currentCard.note_fields || {})[0] || ''}
+          back={currentCard.note_fields?.Back || Object.values(currentCard.note_fields || {})[1] || ''}
+          deckName={currentCard.deck_name}
+          fields={currentCard.note_fields}
+        />
+      )}
     </SafeAreaView>
   );
 }

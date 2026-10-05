@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Android 13+ Themed Adaptive Icon (Monochrome): White on Transparent -->
+  <mask id="monoSparkMask">
+    <rect width="1024" height="1024" fill="#FFFFFF"/>
+    <!-- Cut-out center spark at scale 1.0 translated 256, 256 -->
+    <g transform="translate(256, 256)">
+      <path d="M 256 168 Q 256 256 168 256 Q 256 256 256 344 Q 256 256 344 256 Q 256 256 256 168 Z" fill="#000000"/>
+      <circle cx="340" cy="180" r="14" fill="#000000"/>
+      <circle cx="172" cy="332" r="10" fill="#000000"/>
+    </g>
+  </mask>
+
+  <g transform="translate(256, 256)">
+    <!-- Back Stack Card (Tilted -10 deg) -->
+    <rect x="116" y="80" width="280" height="352" rx="44" transform="rotate(-10 256 256)" fill="#FFFFFF" opacity="0.55" />
+    
+    <!-- Front Card with cut-out spark -->
+    <rect x="116" y="80" width="280" height="352" rx="44" fill="#FFFFFF" mask="url(#monoSparkMask)"/>
+  </g>
+</svg>

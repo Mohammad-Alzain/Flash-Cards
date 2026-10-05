@@ -16,6 +16,13 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { Button } from '../../components/ui/Button';
 import { getDatabase } from '../../core/db/connection';
 import { Ionicons } from '@expo/vector-icons';
+import { isRTL } from '../../i18n';
+import {
+  Logo,
+  VaultBackupIllustration,
+  EmptyStudyIllustration,
+  SessionCompleteIllustration,
+} from '../../components/brand';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -108,17 +115,50 @@ export default function OnboardingScreen() {
     }
   };
 
+  const rtl = isRTL();
+
+  const renderSlideIllustration = (slideId: number) => {
+    switch (slideId) {
+      case 1:
+        return <VaultBackupIllustration size={135} />;
+      case 2:
+        return <EmptyStudyIllustration size={135} />;
+      case 3:
+        return (
+          <View style={{ width: 135, height: 135, alignItems: 'center', justifyContent: 'center' }}>
+            <Logo variant="mark" size={88} />
+          </View>
+        );
+      case 4:
+        return <SessionCompleteIllustration size={135} />;
+      default:
+        return <EmptyStudyIllustration size={135} />;
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Top Bar with Skip */}
-      <View style={styles.topBar}>
-        <View style={{ flex: 1 }} />
-        {activeIndex < slides.length - 1 && (
+      {/* Top Bar with Brand Lockup & Skip */}
+      <View
+        style={[
+          styles.topBar,
+          {
+            flexDirection: rtl ? 'row-reverse' : 'row',
+            paddingHorizontal: 20,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          },
+        ]}
+      >
+        <Logo variant="lockup" size={28} />
+        {activeIndex < slides.length - 1 ? (
           <TouchableOpacity onPress={completeOnboarding} style={styles.skipBtn}>
             <Text style={[styles.skipText, { color: theme.colors.textMuted }]}>
               {t('common.skip') || 'تخطي'}
             </Text>
           </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
         )}
       </View>
 
@@ -133,16 +173,8 @@ export default function OnboardingScreen() {
       >
         {slides.map(slide => (
           <View key={slide.id} style={[styles.slide, { width: SCREEN_WIDTH }]}>
-            <View
-              style={[
-                styles.emojiCircle,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Ionicons name={slide.icon} size={44} color={theme.colors.primary} />
+            <View style={{ height: 140, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              {renderSlideIllustration(slide.id)}
             </View>
 
             <View

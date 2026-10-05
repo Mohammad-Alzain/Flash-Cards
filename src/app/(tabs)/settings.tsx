@@ -99,6 +99,14 @@ export default function SettingsScreen() {
         </Text>
         <Card style={[styles.groupCard, { marginBottom: spacing.lg }]}>
           {renderItem({
+            icon: 'sparkles-outline',
+            iconColor: colors.primary,
+            title: rtl ? 'مساعد الذكاء الاصطناعي' : 'AI Study Assistant',
+            subtitle: rtl ? 'المفتاح، المزود، والتصحيح الذكي' : 'API Key, Provider & Smart Grading',
+            onPress: () => router.push('/settings/ai'),
+          })}
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          {renderItem({
             icon: 'color-palette-outline',
             iconColor: colors.primary,
             title: t('settings.appearance'),

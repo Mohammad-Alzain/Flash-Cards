@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   chip: {
     borderWidth: 1.5,
     alignSelf: 'flex-start',
-    marginRight: 6,
+    marginEnd: 6,
     marginBottom: 6,
   },
   text: {

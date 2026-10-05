@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500" width="1024" height="500">
+  <defs>
+    <linearGradient id="featBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1B4B"/>
+      <stop offset="60%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <radialGradient id="featGlow" cx="75%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#4F46E5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="featCardBack" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3730A3"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="featCardFront" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="featSpark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="500" fill="url(#featBg)"/>
+  <rect width="1024" height="500" fill="url(#featGlow)"/>
+
+  <!-- Left Side: Typography & Value Props -->
+  <g transform="translate(80, 160)">
+    <text font-family="Nunito, system-ui, -apple-system, sans-serif" font-weight="900" font-size="64" letter-spacing="-1">
+      <tspan fill="#818CF8">Flash</tspan><tspan fill="#22D3EE">Cards</tspan>
+    </text>
+    <text y="50" font-family="Cairo, Tahoma, system-ui, -apple-system, sans-serif" font-weight="800" font-size="30" fill="#F8FAFC">
+      بطاقات الاستذكار والتكرار المتباعد
+    </text>
+    <text y="100" font-family="Cairo, Tahoma, system-ui, -apple-system, sans-serif" font-weight="600" font-size="18" fill="#94A3B8">
+      بدون إنترنت • متوافق مع Anki • بودكاست صوتي • اختبارات ذكية
+    </text>
+    <!-- Feature Pills -->
+    <g transform="translate(0, 140)">
+      <rect width="110" height="34" rx="17" fill="#4F46E5" fill-opacity="0.3" stroke="#6366F1" stroke-width="1.5"/>
+      <text x="55" y="22" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="700" font-size="13" fill="#A5F3FC">SM-2 / FSRS</text>
+
+      <rect x="124" width="130" height="34" rx="17" fill="#06B6D4" fill-opacity="0.25" stroke="#22D3EE" stroke-width="1.5"/>
+      <text x="189" y="22" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="700" font-size="13" fill="#E0F2FE">100% Offline</text>
+
+      <rect x="268" width="130" height="34" rx="17" fill="#10B981" fill-opacity="0.25" stroke="#34D399" stroke-width="1.5"/>
+      <text x="333" y="22" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="700" font-size="13" fill="#ECFDF5">Audio Podcast</text>
+    </g>
+  </g>
+
+  <!-- Right Side: Elevated Hero Mark -->
+  <g transform="translate(680, 70) scale(0.72)">
+    <rect x="116" y="80" width="280" height="352" rx="44" transform="rotate(-10 256 256)" fill="url(#featCardBack)" opacity="0.95" />
+    <rect x="116" y="80" width="280" height="352" rx="44" fill="url(#featCardFront)" stroke="#818CF8" stroke-width="4" stroke-opacity="0.6"/>
+    <path d="M 256 168 Q 256 256 168 256 Q 256 256 256 344 Q 256 256 344 256 Q 256 256 256 168 Z" fill="url(#featSpark)"/>
+    <circle cx="340" cy="180" r="14" fill="#22D3EE"/>
+    <circle cx="172" cy="332" r="10" fill="#A5F3FC" opacity="0.85"/>
+  </g>
+</svg>

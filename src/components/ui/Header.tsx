@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, Pressable, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
 import { isRTL } from '../../i18n';
+import { Logo } from '../brand/Logo';
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  logo?: boolean;
   onBack?: () => void;
   rightElement?: React.ReactNode;
   style?: ViewStyle;
@@ -15,6 +17,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
+  logo = false,
   onBack,
   rightElement,
   style,
@@ -57,6 +60,16 @@ export const Header: React.FC<HeaderProps> = ({
               color={colors.text}
             />
           </Pressable>
+        )}
+        {logo && (
+          <Logo
+            variant="mark"
+            size={24}
+            style={{
+              marginRight: rtl ? 0 : 8,
+              marginLeft: rtl ? 8 : 0,
+            }}
+          />
         )}
         <View style={styles.titleColumn}>
           <Text

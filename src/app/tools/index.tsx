@@ -114,8 +114,8 @@ export default function ToolsScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {/* 0. Note Types & Fields Management */}
         <Card style={[styles.toolCard, { marginBottom: spacing.md }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="layers-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="layers-outline" size={20} color={colors.primary} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'أنماط البطاقات والحقول' : 'Note Types & Fields'}
             </Text>
@@ -136,8 +136,8 @@ export default function ToolsScreen() {
 
         {/* 1. Database & Integrity */}
         <Card style={[styles.toolCard, { marginBottom: spacing.md }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'فحص سلامة قاعدة البيانات' : 'Database Integrity Check'}
             </Text>
@@ -156,8 +156,8 @@ export default function ToolsScreen() {
 
         {/* 2. Media & Storage */}
         <Card style={[styles.toolCard, { marginBottom: spacing.md }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="folder-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="folder-outline" size={20} color={colors.primary} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'ملفات الوسائط والتخزين' : 'Media Files & Storage'}
             </Text>
@@ -182,8 +182,8 @@ export default function ToolsScreen() {
 
         {/* 3. Empty Cards Cleaner */}
         <Card style={[styles.toolCard, { marginBottom: spacing.md }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="trash-outline" size={20} color={colors.error} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'منظف البطاقات الفارغة' : 'Empty Cards Cleaner'}
             </Text>
@@ -202,8 +202,8 @@ export default function ToolsScreen() {
 
         {/* 4. Find & Replace */}
         <Card style={[styles.toolCard, { marginBottom: spacing.md }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="search-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="search-outline" size={20} color={colors.primary} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'البحث والاستبدال' : 'Find & Replace'}
             </Text>
@@ -222,8 +222,8 @@ export default function ToolsScreen() {
 
         {/* 5. Find Duplicates */}
         <Card style={[styles.toolCard, { marginBottom: spacing.md }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="copy-outline" size={20} color={colors.warning} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="copy-outline" size={20} color={colors.warning} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'كاشف البطاقات المكررة' : 'Duplicate Finder'}
             </Text>
@@ -242,8 +242,8 @@ export default function ToolsScreen() {
 
         {/* 6. Tags Manager Link */}
         <Card style={[styles.toolCard, { marginBottom: spacing.md }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="pricetag-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'إدارة الوسوم (Tags)' : 'Tags Manager'}
             </Text>
@@ -262,8 +262,8 @@ export default function ToolsScreen() {
 
         {/* 7. Vacuum Compact */}
         <Card style={[styles.toolCard, { marginBottom: spacing.xl }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="flash-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+            <Ionicons name="flash-outline" size={20} color={colors.primary} />
             <Text style={[styles.toolTitle, { color: colors.text }]}>
               {rtl ? 'ضغط قاعدة البيانات (VACUUM)' : 'Compact Database (VACUUM)'}
             </Text>

@@ -1,20 +1,34 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  TouchableOpacity,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../theme';
 import { isRTL } from '../../i18n';
-import { Card, ProgressBar, ProgressRing } from '../../components/ui';
+import { Card, ProgressBar, ProgressRing, Badge } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
-import { statsRepository, TodayStatsSummary } from '../../core/db/repositories/statsRepository';
+import {
+  statsRepository,
+  TodayStatsSummary,
+  DayActivityItem,
+  CardMaturityBreakdown,
+} from '../../core/db/repositories/statsRepository';
 import { cardRepository } from '../../core/db/repositories/cardRepository';
+import { BrandStatsEmblem } from '../../components/brand/BrandStatsEmblem';
 
 export default function StatsScreen() {
-  const { colors, typography, spacing, radius } = useTheme();
+  const { colors, typography, spacing, radius, isDark } = useTheme();
   const { t } = useTranslation();
   const rtl = isRTL();
 
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<TodayStatsSummary>({
     newDone: 0,
     reviewsDone: 0,
@@ -26,230 +40,528 @@ export default function StatsScreen() {
     xpTotal: 0,
   });
   const [cardCounts, setCardCounts] = useState({ due: 0, newCards: 0, learn: 0, total: 0 });
+  const [weeklyActivity, setWeeklyActivity] = useState<DayActivityItem[]>([]);
+  const [retentionRate, setRetentionRate] = useState(90);
+  const [maturity, setMaturity] = useState<CardMaturityBreakdown>({
+    newCards: 0,
+    learning: 0,
+    mature: 0,
+    leeches: 0,
+    total: 0,
+  });
+
+  const loadAllStats = useCallback(async () => {
+    try {
+      const [todaySum, counts, weekly, retention, mat] = await Promise.all([
+        statsRepository.getTodaySummary(),
+        cardRepository.getGlobalCounts(),
+        statsRepository.getWeeklyActivity(),
+        statsRepository.getRetentionRate(),
+        statsRepository.getCardMaturity(),
+      ]);
+      setStats(todaySum);
+      setCardCounts(counts);
+      setWeeklyActivity(weekly);
+      setRetentionRate(retention);
+      setMaturity(mat);
+    } catch (e) {
+      console.error('Failed to load stats data:', e);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      Promise.all([
-        statsRepository.getTodaySummary(),
-        cardRepository.getGlobalCounts(),
-      ]).then(([s, c]) => {
-        setStats(s);
-        setCardCounts(c);
-      });
-    }, [])
+      loadAllStats();
+    }, [loadAllStats])
   );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAllStats();
+    setRefreshing(false);
+  };
 
   const formatMinutes = (ms: number) => {
     const mins = Math.round(ms / 60000);
-    return `${mins} min`;
+    return rtl ? `${mins} دقيقة` : `${mins} min`;
   };
 
   const goalProgress = stats.dailyGoal > 0 ? Math.min(1, stats.totalDone / stats.dailyGoal) : 0;
+  const goalPercent = Math.round(goalProgress * 100);
 
-  // Metric tiles config
+  // Maximum value for weekly chart scaling
+  const maxWeeklyCount = Math.max(10, ...weeklyActivity.map((w) => w.count));
+
+  // 4 Core Metrics Config
   const metricTiles = [
     {
       key: 'reviews',
       icon: 'repeat' as const,
-      color: colors.dueCards,
+      color: colors.dueCards || '#10B981',
       value: stats.reviewsDone,
-      label: t('stats.today_reviewed'),
+      label: rtl ? 'مراجعات اليوم' : "Today's Reviews",
     },
     {
       key: 'time',
       icon: 'time-outline' as const,
-      color: '#10b981', // emerald
+      color: '#06B6D4', // Brand Cyan
       value: formatMinutes(stats.timeMs),
-      label: t('stats.total_time'),
+      label: rtl ? 'وقت المذاكرة' : 'Study Time',
     },
     {
-      key: 'streak',
-      icon: 'flame' as const,
-      color: colors.warning,
-      value: stats.streakCurrent,
-      label: t('home.streak'),
+      key: 'retention',
+      icon: 'shield-checkmark' as const,
+      color: colors.primary,
+      value: `${retentionRate}%`,
+      label: rtl ? 'معدل الاستذكار' : 'Retention Rate',
     },
     {
       key: 'best',
       icon: 'trophy' as const,
-      color: colors.gold,
+      color: colors.gold || '#F59E0B',
       value: stats.streakLongest,
-      label: t('stats.streak_record'),
+      label: rtl ? 'أفضل رقم أيام' : 'Streak Record',
     },
   ];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* ── Screen Top Bar ─────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.screenTopBar,
+          {
+            flexDirection: rtl ? 'row-reverse' : 'row',
+            borderBottomColor: colors.border,
+            paddingHorizontal: spacing.lg,
+          },
+        ]}
+      >
+        <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+          <BrandStatsEmblem variant="kinetic-stack" size={32} />
+          <Text
+            style={[
+              styles.screenTitle,
+              {
+                color: colors.text,
+                fontSize: typography.sizes.xl,
+                fontWeight: typography.weights.bold,
+              },
+            ]}
+          >
+            {t('stats.title')}
+          </Text>
+        </View>
 
-        {/* ── Hero Section ── */}
+        <Badge
+          count={rtl ? `اليوم: ${stats.totalDone} بطاقة` : `Today: ${stats.totalDone}`}
+          variant="accent"
+          size="sm"
+        />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* ── 1. Hero Banner: Artistic Brand Identity Crest ────────────── */}
         <View
           style={[
-            styles.hero,
+            styles.heroCard,
             {
-              backgroundColor: colors.primary,
+              backgroundColor: isDark ? '#1E1B4B' : colors.primary,
+              borderColor: isDark ? '#3730A3' : 'rgba(255,255,255,0.2)',
               marginHorizontal: spacing.lg,
-              marginTop: spacing.sm,
-              borderRadius: 22,
-              paddingHorizontal: spacing.xl,
-              paddingVertical: spacing.lg,
-              shadowColor: colors.primary,
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.22,
-              shadowRadius: 12,
-              elevation: 5,
+              marginTop: spacing.md,
             },
           ]}
         >
-          {/* Left: total cards */}
-          <View style={styles.heroLeft}>
-            <Text style={styles.heroNumber}>{stats.totalDone}</Text>
-            <Text style={styles.heroSubtitle}>بطاقات اليوم</Text>
-          </View>
-
-          {/* Right: streak badge */}
-          <View style={[styles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: radius.lg }]}>
-            <Ionicons name="flame" size={28} color="#FF9600" />
-            <Text style={styles.heroBadgeNumber}>{stats.streakCurrent}</Text>
-            <Text style={styles.heroBadgeLabel}>{t('home.streak')}</Text>
-          </View>
-        </View>
-
-        <View style={{ padding: spacing.lg }}>
-
-          {/* ── 2×2 Metric Grid ── */}
-          <View style={[styles.gridRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginBottom: spacing.md }]}>
-            {metricTiles.slice(0, 2).map((tile, i) => (
-              <View
-                key={tile.key}
+          <View style={[styles.heroRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            {/* Left/Right Text Section */}
+            <View style={[styles.heroTextSide, { alignItems: rtl ? 'flex-end' : 'flex-start' }]}>
+              <Text
                 style={[
-                  styles.tile,
+                  styles.heroSubtitle,
                   {
-                    backgroundColor: `${tile.color}1A`, // 10% opacity hex
-                    borderRadius: radius.md,
-                    marginRight: !rtl && i === 0 ? spacing.sm : 0,
-                    marginLeft: rtl && i === 0 ? spacing.sm : 0,
+                    textAlign: rtl ? 'right' : 'left',
+                    color: 'rgba(255, 255, 255, 0.82)',
                   },
                 ]}
               >
-                <Ionicons name={tile.icon} size={20} color={tile.color} />
-                <Text style={[styles.tileValue, { color: tile.color, fontSize: 28, fontWeight: typography.weights.bold }]}>
-                  {tile.value}
-                </Text>
-                <Text style={[styles.tileLabel, { color: colors.textSecondary, fontSize: 11, textAlign: 'center' }]}>
-                  {tile.label}
-                </Text>
-              </View>
-            ))}
-          </View>
+                {rtl ? 'إجمالي إنجاز اليوم' : "Today's Study Progress"}
+              </Text>
 
-          <View style={[styles.gridRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginBottom: spacing.lg }]}>
-            {metricTiles.slice(2, 4).map((tile, i) => (
+              {/* Numbers with explicit BiDi alignment */}
               <View
-                key={tile.key}
                 style={[
-                  styles.tile,
+                  styles.heroNumberRow,
                   {
-                    backgroundColor: `${tile.color}1A`,
-                    borderRadius: radius.md,
-                    marginRight: !rtl && i === 0 ? spacing.sm : 0,
-                    marginLeft: rtl && i === 0 ? spacing.sm : 0,
+                    flexDirection: rtl ? 'row-reverse' : 'row',
+                    alignItems: 'baseline',
+                    gap: 6,
                   },
                 ]}
               >
-                <Ionicons name={tile.icon} size={20} color={tile.color} />
-                <Text style={[styles.tileValue, { color: tile.color, fontSize: 28, fontWeight: typography.weights.bold }]}>
+                <Text style={styles.heroBigNumber}>{stats.totalDone}</Text>
+                <Text style={styles.heroGoalDenominator}>/ {stats.dailyGoal} {rtl ? 'بطاقة' : 'cards'}</Text>
+              </View>
+
+              {/* Progress mini-bar */}
+              <View style={styles.heroProgressTrack}>
+                <View
+                  style={[
+                    styles.heroProgressBar,
+                    {
+                      width: `${Math.min(100, goalPercent)}%`,
+                      backgroundColor: '#22D3EE',
+                    },
+                  ]}
+                />
+              </View>
+
+              <Text
+                style={[
+                  styles.heroGoalStatus,
+                  {
+                    textAlign: rtl ? 'right' : 'left',
+                    color: 'rgba(255, 255, 255, 0.75)',
+                  },
+                ]}
+              >
+                {goalPercent >= 100
+                  ? rtl
+                    ? '🎉 اكتمل الهدف اليومي بنجاح!'
+                    : '🎉 Daily goal completed!'
+                  : rtl
+                  ? `متبقي ${Math.max(0, stats.dailyGoal - stats.totalDone)} بطاقة لإكمال الهدف`
+                  : `${Math.max(0, stats.dailyGoal - stats.totalDone)} cards remaining`}
+              </Text>
+            </View>
+
+            {/* Emblem Right/Left side */}
+            <View style={styles.heroEmblemContainer}>
+              <BrandStatsEmblem variant="hero-spark" size={90} />
+            </View>
+          </View>
+        </View>
+
+        {/* ── 2. 2×2 Core Metric Tiles ──────────────────────────────── */}
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg }}>
+          <View style={[styles.gridRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            {metricTiles.map((tile) => (
+              <Card
+                key={tile.key}
+                style={[
+                  styles.metricTile,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.metricTileTop,
+                    {
+                      flexDirection: rtl ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.metricIconCircle,
+                      {
+                        backgroundColor: `${tile.color}18`,
+                      },
+                    ]}
+                  >
+                    <Ionicons name={tile.icon} size={18} color={tile.color} />
+                  </View>
+                </View>
+
+                {/* Metric Value */}
+                <Text
+                  style={[
+                    styles.metricTileValue,
+                    {
+                      color: colors.text,
+                      textAlign: rtl ? 'right' : 'left',
+                    },
+                  ]}
+                >
                   {tile.value}
                 </Text>
-                <Text style={[styles.tileLabel, { color: colors.textSecondary, fontSize: 11, textAlign: 'center' }]}>
+
+                {/* Metric Label */}
+                <Text
+                  style={[
+                    styles.metricTileLabel,
+                    {
+                      color: colors.textSecondary,
+                      textAlign: rtl ? 'right' : 'left',
+                    },
+                  ]}
+                >
                   {tile.label}
                 </Text>
-              </View>
+              </Card>
             ))}
           </View>
 
-          {/* ── Goal Ring Card ── */}
-          <Card style={[styles.sectionCard, { marginBottom: spacing.md }]}>
+          {/* ── 3. Weekly 7-Day Study Activity Chart ────────────────── */}
+          <Card
+            style={[
+              styles.sectionCard,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+                marginTop: spacing.md,
+              },
+            ]}
+          >
             <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-              <Ionicons
-                name="radio-button-on"
-                size={20}
-                color={colors.primary}
-                style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
-              />
-              <Text style={[styles.cardHeading, { color: colors.text, fontSize: typography.sizes.md, fontWeight: typography.weights.bold, textAlign: rtl ? 'right' : 'left' }]}>
-                هدف اليوم
+              <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="bar-chart" size={18} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.cardHeading,
+                    {
+                      color: colors.text,
+                      textAlign: rtl ? 'right' : 'left',
+                    },
+                  ]}
+                >
+                  {rtl ? 'نشاط المذاكرة (آخر 7 أيام)' : 'Weekly Activity (Last 7 Days)'}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                {rtl ? 'تحديث تلقائي' : 'Auto synced'}
               </Text>
             </View>
 
-            <View style={styles.ringContainer}>
-              <ProgressRing
-                progress={goalProgress}
-                size={130}
-                strokeWidth={12}
-                color={colors.primary}
-                label={`${stats.totalDone}/${stats.dailyGoal}`}
-                sublabel={t('stats.today_reviewed')}
-              />
+            {/* Bars Container */}
+            <View
+              style={[
+                styles.chartContainer,
+                {
+                  flexDirection: rtl ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              {weeklyActivity.map((day) => {
+                const heightPercent = Math.max(8, Math.round((day.count / maxWeeklyCount) * 100));
+
+                return (
+                  <View key={day.date} style={styles.chartCol}>
+                    {/* Count over bar */}
+                    <Text
+                      style={[
+                        styles.barCountText,
+                        {
+                          color: day.isToday ? colors.primary : colors.textMuted,
+                          fontWeight: day.isToday ? '800' : '500',
+                        },
+                      ]}
+                    >
+                      {day.count > 0 ? day.count : ''}
+                    </Text>
+
+                    {/* Bar Pillar */}
+                    <View style={[styles.barTrack, { backgroundColor: isDark ? '#27272A' : '#F4F4F5' }]}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          {
+                            height: `${heightPercent}%`,
+                            backgroundColor: day.isToday
+                              ? colors.primary
+                              : day.count > 0
+                              ? '#06B6D4'
+                              : 'transparent',
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    {/* Day Name */}
+                    <Text
+                      style={[
+                        styles.barDayText,
+                        {
+                          color: day.isToday ? colors.primary : colors.textSecondary,
+                          fontWeight: day.isToday ? '800' : '600',
+                        },
+                      ]}
+                    >
+                      {rtl ? day.dayNameAr : day.dayNameEn}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </Card>
 
-          {/* ── Collection Distribution Card ── */}
-          <Card style={[styles.sectionCard, { marginBottom: spacing.md }]}>
+          {/* ── 4. Card Maturity Distribution (مستويات النضج) ───────── */}
+          <Card
+            style={[
+              styles.sectionCard,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+                marginTop: spacing.md,
+              },
+            ]}
+          >
             <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-              <Ionicons
-                name="stats-chart"
-                size={20}
-                color={colors.primary}
-                style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
-              />
-              <Text style={[styles.cardHeading, { color: colors.text, fontSize: typography.sizes.md, fontWeight: typography.weights.bold, textAlign: rtl ? 'right' : 'left' }]}>
-                {t('stats.all_time')} ({cardCounts.total} {t('decks.cards_badge', { count: 0 }).trim()})
+              <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+                <BrandStatsEmblem variant="retention-target" size={24} />
+                <Text
+                  style={[
+                    styles.cardHeading,
+                    {
+                      color: colors.text,
+                      textAlign: rtl ? 'right' : 'left',
+                    },
+                  ]}
+                >
+                  {rtl ? 'مراحل نضج البطاقات وتكرارها' : 'Card Maturity Stages'}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>
+                {cardCounts.total} {rtl ? 'بطاقة' : 'cards'}
               </Text>
             </View>
 
-            {/* New */}
-            <View style={{ marginTop: spacing.sm }}>
-              <View style={[styles.barLabelRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-                <Text style={{ color: colors.text, fontSize: typography.sizes.sm }}>
-                  {t('decks.new_badge', { count: cardCounts.newCards })}
-                </Text>
-                <Text style={{ color: colors.newCards, fontWeight: 'bold' }}>
-                  {cardCounts.total > 0 ? Math.round((cardCounts.newCards / cardCounts.total) * 100) : 0}%
+            {/* 1. New Cards */}
+            <View style={styles.maturityRow}>
+              <View style={[styles.maturityLabelRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.stageDot, { backgroundColor: colors.newCards || '#3B82F6' }]} />
+                  <Text style={[styles.stageName, { color: colors.text }]}>
+                    {rtl ? 'بطاقات جديدة (غير مدروسة)' : 'New (Unseen)'}
+                  </Text>
+                </View>
+                <Text style={[styles.stageCount, { color: colors.newCards || '#3B82F6', textAlign: rtl ? 'left' : 'right' }]}>
+                  {maturity.newCards}
                 </Text>
               </View>
-              <ProgressBar progress={cardCounts.total > 0 ? cardCounts.newCards / cardCounts.total : 0} color={colors.newCards} />
+              <ProgressBar
+                progress={cardCounts.total > 0 ? maturity.newCards / cardCounts.total : 0}
+                color={colors.newCards || '#3B82F6'}
+              />
             </View>
 
-            {/* Learning */}
-            <View style={{ marginTop: spacing.sm }}>
-              <View style={[styles.barLabelRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-                <Text style={{ color: colors.text, fontSize: typography.sizes.sm }}>
-                  {t('decks.learn_badge', { count: cardCounts.learn })}
-                </Text>
-                <Text style={{ color: colors.primary, fontWeight: 'bold' }}>
-                  {cardCounts.total > 0 ? Math.round((cardCounts.learn / cardCounts.total) * 100) : 0}%
+            {/* 2. Learning */}
+            <View style={styles.maturityRow}>
+              <View style={[styles.maturityLabelRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.stageDot, { backgroundColor: colors.learningCards || '#F59E0B' }]} />
+                  <Text style={[styles.stageName, { color: colors.text }]}>
+                    {rtl ? 'قيد التثبيت والتعلم (< 21 يوم)' : 'Learning (< 21 days)'}
+                  </Text>
+                </View>
+                <Text style={[styles.stageCount, { color: colors.learningCards || '#F59E0B', textAlign: rtl ? 'left' : 'right' }]}>
+                  {maturity.learning}
                 </Text>
               </View>
-              <ProgressBar progress={cardCounts.total > 0 ? cardCounts.learn / cardCounts.total : 0} color={colors.primary} />
+              <ProgressBar
+                progress={cardCounts.total > 0 ? maturity.learning / cardCounts.total : 0}
+                color={colors.learningCards || '#F59E0B'}
+              />
             </View>
 
-            {/* Due */}
-            <View style={{ marginTop: spacing.sm }}>
-              <View style={[styles.barLabelRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-                <Text style={{ color: colors.text, fontSize: typography.sizes.sm }}>
-                  {t('decks.due_badge', { count: cardCounts.due })}
-                </Text>
-                <Text style={{ color: colors.dueCards, fontWeight: 'bold' }}>
-                  {cardCounts.total > 0 ? Math.round((cardCounts.due / cardCounts.total) * 100) : 0}%
+            {/* 3. Mature */}
+            <View style={styles.maturityRow}>
+              <View style={[styles.maturityLabelRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.stageDot, { backgroundColor: '#10B981' }]} />
+                  <Text style={[styles.stageName, { color: colors.text }]}>
+                    {rtl ? 'متقنة وناضجة (≥ 21 يوم)' : 'Mature (≥ 21 days)'}
+                  </Text>
+                </View>
+                <Text style={[styles.stageCount, { color: '#10B981', textAlign: rtl ? 'left' : 'right' }]}>
+                  {maturity.mature}
                 </Text>
               </View>
-              <ProgressBar progress={cardCounts.total > 0 ? cardCounts.due / cardCounts.total : 0} color={colors.dueCards} />
+              <ProgressBar
+                progress={cardCounts.total > 0 ? maturity.mature / cardCounts.total : 0}
+                color="#10B981"
+              />
             </View>
+
+            {/* 4. Leeches (if any) */}
+            {maturity.leeches > 0 && (
+              <View style={styles.maturityRow}>
+                <View style={[styles.maturityLabelRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                  <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={[styles.stageDot, { backgroundColor: colors.error || '#EF4444' }]} />
+                    <Text style={[styles.stageName, { color: colors.error || '#EF4444' }]}>
+                      {rtl ? 'بطاقات متعثرة (أخطاء متكررة)' : 'Leeches (Frequent Mistakes)'}
+                    </Text>
+                  </View>
+                  <Text style={[styles.stageCount, { color: colors.error || '#EF4444', textAlign: rtl ? 'left' : 'right' }]}>
+                    {maturity.leeches}
+                  </Text>
+                </View>
+                <ProgressBar
+                  progress={cardCounts.total > 0 ? maturity.leeches / cardCounts.total : 0}
+                  color={colors.error || '#EF4444'}
+                />
+              </View>
+            )}
           </Card>
 
-          <View style={{ height: 60 }} />
+          {/* ── 5. Streak & Momentum Card ───────────────────────────── */}
+          <Card
+            style={[
+              styles.sectionCard,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+                marginTop: spacing.md,
+              },
+            ]}
+          >
+            <View style={[styles.streakBannerRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              <BrandStatsEmblem variant="streak-crest" size={54} />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.streakTitle,
+                    {
+                      color: colors.text,
+                      textAlign: rtl ? 'right' : 'left',
+                    },
+                  ]}
+                >
+                  {rtl ? `حماسك الحالي: ${stats.streakCurrent} أيام متتالية!` : `Current Streak: ${stats.streakCurrent} Days!`}
+                </Text>
+                <Text
+                  style={[
+                    styles.streakSub,
+                    {
+                      color: colors.textSecondary,
+                      textAlign: rtl ? 'right' : 'left',
+                    },
+                  ]}
+                >
+                  {rtl
+                    ? `أفضل رقم قياسي حققته هو ${stats.streakLongest} يوماً. استمر في المذاكرة اليومية للحفاظ على التكرار!`
+                    : `Your longest streak is ${stats.streakLongest} days. Keep reviewing daily to maintain interval mastery!`}
+                </Text>
+              </View>
+            </View>
+          </Card>
         </View>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -260,79 +572,195 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {},
-
-  // Hero
-  hero: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 36,
-    flexDirection: 'row',
+  screenTopBar: {
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
   },
-  heroLeft: {
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  // Hero Card
+  heroCard: {
+    borderRadius: 22,
+    borderWidth: 1.5,
+    padding: 20,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  heroRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroTextSide: {
     flex: 1,
   },
-  heroNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    lineHeight: 56,
-  },
   heroSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.80)',
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  heroBadge: {
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginLeft: 12,
+  heroNumberRow: {
+    marginTop: 4,
   },
-  heroBadgeNumber: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  heroBigNumber: {
+    fontSize: 42,
+    fontWeight: '900',
     color: '#FFFFFF',
-    marginTop: 2,
+    lineHeight: 48,
   },
-  heroBadgeLabel: {
+  heroGoalDenominator: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.70)',
+    fontWeight: '600',
+  },
+  heroProgressTrack: {
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    width: '100%',
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  heroProgressBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  heroGoalStatus: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 1,
+    marginTop: 6,
+    fontWeight: '500',
   },
-
-  // 2×2 grid
-  gridRow: {
-    justifyContent: 'space-between',
-  },
-  tile: {
-    width: '48%',
-    height: 90,
+  heroEmblemContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
   },
-  tileValue: {},
-  tileLabel: {},
 
-  // Cards
-  sectionCard: {},
+  // 2x2 Grid
+  gridRow: {
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  metricTile: {
+    width: '48%',
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  metricTileTop: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  metricIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricTileValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  metricTileLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  // Section Cards
+  sectionCard: {
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 16,
+  },
   cardHeader: {
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  cardHeading: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  // Weekly Chart
+  chartContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 120,
+    paddingTop: 10,
+  },
+  chartCol: {
+    alignItems: 'center',
+    flex: 1,
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  barCountText: {
+    fontSize: 10,
+    marginBottom: 4,
+  },
+  barTrack: {
+    width: 14,
+    height: 70,
+    borderRadius: 7,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: {
+    width: '100%',
+    borderRadius: 7,
+  },
+  barDayText: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+
+  // Maturity rows
+  maturityRow: {
     marginBottom: 12,
   },
-  cardHeading: {},
-
-  // Ring
-  ringContainer: {
+  maturityLabelRow: {
     alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  stageDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  stageName: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  stageCount: {
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 32,
   },
 
-  // Bar sections
-  barLabelRow: {
-    justifyContent: 'space-between',
-    marginBottom: 4,
+  // Streak Banner
+  streakBannerRow: {
+    alignItems: 'center',
+    gap: 14,
+  },
+  streakTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  streakSub: {
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

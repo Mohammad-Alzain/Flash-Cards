@@ -25,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { deckRepository, DeckWithCounts } from '../../core/db/repositories/deckRepository';
 import { cardRepository } from '../../core/db/repositories/cardRepository';
 import { statsRepository, TodayStatsSummary } from '../../core/db/repositories/statsRepository';
+import { Logo } from '../../components/brand/Logo';
 
 // Accent colour palette for deck cards — derived from deck name's first char code
 const DECK_ACCENTS = ['#4F46E5', '#8B5CF6', '#0EA5E9', '#F59E0B', '#EF4444'];
@@ -108,20 +109,8 @@ export default function HomeScreen() {
           },
         ]}
       >
-        {/* App wordmark / title */}
-        <Text
-          style={[
-            styles.appTitle,
-            {
-              color: colors.primary,
-              fontSize: typography.sizes.xl,
-              fontWeight: typography.weights.extrabold,
-              textAlign: rtl ? 'right' : 'left',
-            },
-          ]}
-        >
-          FlashCards
-        </Text>
+        {/* App brand logo / wordmark */}
+        <Logo variant="lockup" size={32} />
 
         {/* Streak + XP pill — tappable to profile */}
         <Pressable
@@ -182,7 +171,7 @@ export default function HomeScreen() {
             ]}
           >
             {/* Left: greeting + progress numbers */}
-            <View style={styles.heroTextCol}>
+            <View style={[styles.heroTextCol, { alignItems: rtl ? 'flex-end' : 'flex-start' }]}>
               <Text
                 style={[
                   styles.heroGreeting,
@@ -197,19 +186,23 @@ export default function HomeScreen() {
                 {greeting}
               </Text>
 
-              <Text
-                style={[
-                  styles.heroGoalNumber,
-                  {
+              <View
+                style={{
+                  flexDirection: rtl ? 'row-reverse' : 'row',
+                  alignItems: 'baseline',
+                  gap: 4,
+                  marginTop: 4,
+                }}
+              >
+                <Text
+                  style={{
                     color: '#FFFFFF',
                     fontSize: typography.sizes.xxl,
                     fontWeight: typography.weights.extrabold,
-                    textAlign: rtl ? 'right' : 'left',
-                    marginTop: 4,
-                  },
-                ]}
-              >
-                {todayStats.totalDone}
+                  }}
+                >
+                  {todayStats.totalDone}
+                </Text>
                 <Text
                   style={{
                     color: 'rgba(255,255,255,0.65)',
@@ -217,9 +210,9 @@ export default function HomeScreen() {
                     fontWeight: typography.weights.regular,
                   }}
                 >
-                  {' '}/{todayStats.dailyGoal}
+                  / {todayStats.dailyGoal}
                 </Text>
-              </Text>
+              </View>
 
               <Text
                 style={[
@@ -544,9 +537,10 @@ export default function HomeScreen() {
           })}
 
           {decks.length === 0 && (
-            <View
+            <Pressable
+              onPress={() => router.push('/(tabs)/decks')}
               style={{
-                width: 180,
+                width: 200,
                 backgroundColor: colors.surfaceRaised,
                 borderWidth: 1,
                 borderColor: colors.border,
@@ -554,13 +548,17 @@ export default function HomeScreen() {
                 padding: spacing.md,
                 alignItems: 'center',
                 justifyContent: 'center',
-                minHeight: 100,
+                minHeight: 110,
               }}
             >
-              <Text style={{ color: colors.textMuted, fontSize: typography.sizes.sm, textAlign: 'center' }}>
+              <Logo variant="mark" size={40} style={{ marginBottom: 6 }} />
+              <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: typography.weights.bold, textAlign: 'center' }}>
                 {rtl ? 'لا توجد رزم بعد' : 'No decks yet'}
               </Text>
-            </View>
+              <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, marginTop: 4, textAlign: 'center', fontWeight: typography.weights.medium }}>
+                {rtl ? '+ أنشئ رزمتك الأولى' : '+ Create first deck'}
+              </Text>
+            </Pressable>
           )}
         </ScrollView>
 
@@ -785,7 +783,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
-  statPillNum: {},
+  statPillNum: {
+    textAlign: 'center',
+  },
   statPillLabel: {
     textAlign: 'center',
   },

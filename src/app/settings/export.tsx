@@ -22,6 +22,8 @@ import { ExportManager } from '../../core/exporters/exportManager';
 import { ExportFormat, ExportProgress } from '../../core/exporters/types';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 
+import { isRTL } from '../../i18n';
+
 interface DeckOption {
   id: string;
   name: string;
@@ -32,6 +34,7 @@ export default function ExportScreen() {
   const params = useLocalSearchParams<{ deckId?: string }>();
   const { t } = useTranslation();
   const theme = useTheme();
+  const rtl = isRTL();
 
   const [decks, setDecks] = useState<DeckOption[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | undefined>(params.deckId);
@@ -112,17 +115,18 @@ export default function ExportScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <Header
+        logo
         title={t('export.title')}
         onBack={() => router.back()}
       />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Deck Selection */}
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
           {t('export.selectDeck')}
         </Text>
         <Card style={styles.deckSelectorCard}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.deckChips}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.deckChips, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
               style={[
                 styles.chip,
@@ -172,74 +176,97 @@ export default function ExportScreen() {
         </Card>
 
         {/* Format Selection */}
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
           {t('export.format')}
         </Text>
         <View style={styles.formatsContainer}>
           {formats.map(f => {
             const isSelected = format === f.id;
             return (
-              <TouchableOpacity
+              <Card
                 key={f.id}
                 onPress={() => setFormat(f.id)}
-                activeOpacity={0.7}
+                elevated={!isSelected}
+                style={[
+                  styles.formatCard,
+                  {
+                    borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                    borderWidth: isSelected ? 2 : 1,
+                    backgroundColor: isSelected
+                      ? (theme.isDark ? theme.colors.surfaceRaised : '#EEF2FF')
+                      : theme.colors.surfaceRaised,
+                  },
+                ]}
               >
-                <Card
-                  style={[
-                    styles.formatCard,
-                    isSelected && {
-                      borderColor: theme.colors.primary,
-                      borderWidth: 2,
-                      backgroundColor: theme.colors.primary + '08',
-                    },
-                  ]}
-                >
-                  <View style={styles.formatRow}>
-                    <View
+                <View style={[styles.formatRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                  <View
+                    style={[
+                      styles.iconCircle,
+                      {
+                        backgroundColor: isSelected
+                          ? theme.colors.primary
+                          : (theme.isDark ? theme.colors.surface : '#F1F5F9'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={f.icon as any}
+                      size={24}
+                      color={isSelected ? '#ffffff' : theme.colors.primary}
+                    />
+                  </View>
+                  <View
+                    style={{
+                      flex: 1,
+                      marginHorizontal: 12,
+                      alignItems: rtl ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    <Text
                       style={[
-                        styles.iconCircle,
+                        styles.formatTitle,
                         {
-                          backgroundColor: isSelected ? theme.colors.primary : theme.colors.surface,
+                          color: isSelected && !theme.isDark ? '#312E81' : theme.colors.text,
+                          textAlign: rtl ? 'right' : 'left',
                         },
                       ]}
                     >
-                      <Ionicons
-                        name={f.icon as any}
-                        size={24}
-                        color={isSelected ? '#ffffff' : theme.colors.primary}
-                      />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.formatTitle, { color: theme.colors.text }]}>
-                        {f.title}
-                      </Text>
-                      <Text style={[styles.formatSubtitle, { color: theme.colors.textMuted }]}>
-                        {f.subtitle}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                      size={22}
-                      color={isSelected ? theme.colors.primary : theme.colors.textMuted}
-                    />
+                      {f.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.formatSubtitle,
+                        {
+                          color: isSelected && !theme.isDark ? '#4338CA' : theme.colors.textMuted,
+                          textAlign: rtl ? 'right' : 'left',
+                        },
+                      ]}
+                    >
+                      {f.subtitle}
+                    </Text>
                   </View>
-                </Card>
-              </TouchableOpacity>
+                  <Ionicons
+                    name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                    size={22}
+                    color={isSelected ? theme.colors.primary : theme.colors.textMuted}
+                  />
+                </View>
+              </Card>
             );
           })}
         </View>
 
         {/* Options */}
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
           {t('export.options')}
         </Text>
         <Card style={styles.optionsCard}>
-          <View style={styles.optionRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: theme.colors.text }]}>
+          <View style={[styles.optionRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <View style={{ flex: 1, alignItems: rtl ? 'flex-end' : 'flex-start' }}>
+              <Text style={[styles.optionLabel, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('export.includeScheduling')}
               </Text>
-              <Text style={[styles.optionDesc, { color: theme.colors.textMuted }]}>
+              <Text style={[styles.optionDesc, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('export.includeSchedulingDesc')}
               </Text>
             </View>
@@ -253,12 +280,12 @@ export default function ExportScreen() {
           {format === 'apkg' && (
             <>
               <View style={[styles.cardDivider, { backgroundColor: theme.colors.border }]} />
-              <View style={styles.optionRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.optionLabel, { color: theme.colors.text }]}>
+              <View style={[styles.optionRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <View style={{ flex: 1, alignItems: rtl ? 'flex-end' : 'flex-start' }}>
+                  <Text style={[styles.optionLabel, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                     {t('export.includeMedia')}
                   </Text>
-                  <Text style={[styles.optionDesc, { color: theme.colors.textMuted }]}>
+                  <Text style={[styles.optionDesc, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
                     {t('export.includeMediaDesc')}
                   </Text>
                 </View>

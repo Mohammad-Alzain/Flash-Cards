@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#3730A3"/>
+    </linearGradient>
+    <linearGradient id="cardGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="foldGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Card (Stack Layer) -->
+  <rect x="96" y="112" width="260" height="320" rx="36" transform="rotate(-12 226 272)" fill="#312E81" opacity="0.85"/>
+  <!-- Middle Card -->
+  <rect x="120" y="96" width="260" height="320" rx="36" transform="rotate(-4 250 256)" fill="#4338CA" opacity="0.95"/>
+  <!-- Front Card -->
+  <rect x="156" y="96" width="260" height="320" rx="36" fill="url(#cardGradA)"/>
+  <!-- Kinetic Corner Fold / Flip Accent -->
+  <path d="M 320 96 L 416 192 L 356 192 C 336 192 320 176 320 156 Z" fill="url(#foldGradA)"/>
+  <!-- Central Memory Cue Lines -->
+  <rect x="196" y="220" width="130" height="18" rx="9" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="196" y="258" width="180" height="18" rx="9" fill="#E0E7FF" opacity="0.8"/>
+  <rect x="196" y="296" width="110" height="18" rx="9" fill="#22D3EE" opacity="0.95"/>
+</svg>

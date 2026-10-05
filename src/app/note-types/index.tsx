@@ -166,13 +166,13 @@ export default function NoteTypesScreen() {
             </View>
 
             {/* Actions for Fields and Templates */}
-            <View style={[styles.actionsRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginTop: spacing.md }]}>
+            <View style={[styles.actionsRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8, marginTop: spacing.md }]}>
               <Button
                 title={t('note_types.fields_button', { count: nt.fields_count })}
                 variant="ghost"
                 size="sm"
                 onPress={() => router.push(`/note-types/${nt.id}/fields`)}
-                style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
+                style={{ flex: 1 }}
               />
 
               <Button
@@ -180,7 +180,7 @@ export default function NoteTypesScreen() {
                 variant="secondary"
                 size="sm"
                 onPress={() => router.push(`/note-types/${nt.id}/templates`)}
-                style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
+                style={{ flex: 1 }}
               />
 
               {nt.notes_count === 0 && (
@@ -229,13 +229,13 @@ export default function NoteTypesScreen() {
               placeholder="e.g. Vocabulary, Medical, Grammar..."
             />
 
-            <View style={[styles.modalBtnRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginTop: spacing.md }]}>
+            <View style={[styles.modalBtnRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8, marginTop: spacing.md }]}>
               <Button
                 title={t('common.cancel')}
                 variant="ghost"
                 size="md"
                 onPress={() => setModalVisible(false)}
-                style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
+                style={{ flex: 1 }}
               />
               <Button
                 title={t('common.save')}

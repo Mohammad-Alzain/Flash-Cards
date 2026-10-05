@@ -426,11 +426,19 @@ export default function DecksScreen() {
       >
         {visibleTree.length === 0 ? (
           <EmptyState
-            icon="albums-outline"
-            title={t('decks.empty_title')}
-            description={t('decks.empty_desc')}
-            actionTitle={`+ ${t('decks.new_deck')}`}
-            onAction={() => setModalVisible(true)}
+            illustration={searchQuery.trim().length > 0 ? 'search' : 'study'}
+            title={
+              searchQuery.trim().length > 0
+                ? (rtl ? 'لا توجد رزم مطابقة' : 'No matching decks')
+                : t('decks.empty_title')
+            }
+            description={
+              searchQuery.trim().length > 0
+                ? (rtl ? 'تأكد من كتابة الاسم بشكل صحيح أو امسح البحث' : 'Check spelling or clear the search query')
+                : t('decks.empty_desc')
+            }
+            actionTitle={searchQuery.trim().length > 0 ? undefined : `+ ${t('decks.new_deck')}`}
+            onAction={searchQuery.trim().length > 0 ? undefined : () => setModalVisible(true)}
           />
         ) : (
           visibleTree.map((rootNode) => renderDeckNode(rootNode, false))

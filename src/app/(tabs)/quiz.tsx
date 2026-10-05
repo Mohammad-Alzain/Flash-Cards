@@ -81,6 +81,26 @@ export default function QuizScreen() {
     iconColor: string;
   }[] = [
     {
+      id: 'written_ai',
+      title: rtl ? 'اختبار كتابي بالذكاء الاصطناعي' : 'AI Written Quiz',
+      desc: rtl
+        ? 'اكتب إجاباتك بحرية مع تصحيح ذكي وتقييم دقيق في نهاية الاختبار'
+        : 'Write freeform answers evaluated with comprehensive AI grading',
+      icon: 'sparkles',
+      variant: 'primary',
+      iconColor: colors.primary,
+    },
+    {
+      id: 'mixed',
+      title: rtl ? 'اختبار مختلط (كتابي واختياري)' : 'Mixed Mode (Written & MC)',
+      desc: rtl
+        ? 'مزيج متنوع يجمع بين أسئلة الاختيار والأسئلة الكتابية'
+        : 'Varied mix of multiple choice and written questions',
+      icon: 'layers',
+      variant: 'secondary',
+      iconColor: colors.accent,
+    },
+    {
       id: 'random',
       title: t('quiz.random_title'),
       desc: rtl ? 'اختبار تفاعلي سريع (اختيار من متعدد وصح أو خطأ)' : t('quiz.random_desc'),

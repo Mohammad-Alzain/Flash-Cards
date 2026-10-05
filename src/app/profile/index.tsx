@@ -92,19 +92,19 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <Header title="Profile & Quests" onBack={() => router.back()} />
+      <Header title={rtl ? 'الملف الشخصي والمهام' : 'Profile & Quests'} onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {/* 1. Level & User Card */}
         <Card style={[styles.userCard, { marginBottom: spacing.lg, borderColor: colors.primary }]}>
-          <View style={[styles.avatarRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.avatarRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 16 }]}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
               <Ionicons name="school" size={32} color={colors.primary} />
             </View>
 
-            <View style={[styles.avatarTextCol, { marginRight: rtl ? 16 : 0, marginLeft: rtl ? 0 : 16 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Badge count={`Level ${levelInfo.level}`} variant="due" size="sm" style={{ marginRight: 6 }} />
+            <View style={styles.avatarTextCol}>
+              <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                <Badge count={`${rtl ? 'المستوى' : 'Level'} ${levelInfo.level}`} variant="due" size="sm" />
                 <XPCounter xp={levelInfo.currentXp} />
               </View>
 
@@ -129,7 +129,7 @@ export default function ProfileScreen() {
           <View style={{ marginTop: spacing.md }}>
             <View style={[styles.levelProgressRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                XP to Level {levelInfo.level + 1}
+                {rtl ? `نقاط الخبرة للمستوى ${levelInfo.level + 1}` : `XP to Level ${levelInfo.level + 1}`}
               </Text>
               <Text style={{ color: colors.text, fontSize: 12, fontWeight: 'bold' }}>
                 {levelInfo.currentXp} / {levelInfo.xpForNextLevel} XP
@@ -151,26 +151,26 @@ export default function ProfileScreen() {
             <View style={styles.streakBox}>
               <StreakFlame streak={stats.streakCurrent} />
               <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}>
-                Current Streak
+                {rtl ? 'الحماس الحالي' : 'Current Streak'}
               </Text>
             </View>
 
             <View style={styles.streakBox}>
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.gold }}>
-                {stats.streakLongest} Days
+                {stats.streakLongest} {rtl ? 'أيام' : 'Days'}
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}>
-                Longest Streak
+                {rtl ? 'أطول حماس' : 'Longest Streak'}
               </Text>
             </View>
 
             <View style={styles.streakBox}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="snow-outline" size={20} color={colors.accent} style={{ marginRight: 4 }} />
+              <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="snow-outline" size={20} color={colors.accent} />
                 <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>1</Text>
               </View>
               <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}>
-                Streak Freeze
+                {rtl ? 'تجميد الحماس' : 'Streak Freeze'}
               </Text>
             </View>
           </View>
@@ -178,8 +178,8 @@ export default function ProfileScreen() {
 
         {/* 3. Daily Quests Section */}
         <Card style={[styles.questsCard, { marginBottom: spacing.lg }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.md }}>
-            <Ionicons name="flag-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.md, gap: 8 }}>
+            <Ionicons name="flag-outline" size={20} color={colors.primary} />
             <Text
               style={[
                 styles.sectionTitle,
@@ -191,7 +191,7 @@ export default function ProfileScreen() {
                 },
               ]}
             >
-              Daily Quests
+              {rtl ? 'المهام اليومية' : 'Daily Quests'}
             </Text>
           </View>
 
@@ -236,7 +236,7 @@ export default function ProfileScreen() {
 
                     {isCompleted && !q.claimed && (
                       <Button
-                        title="Claim Reward"
+                        title={rtl ? 'استلام المكافأة' : 'Claim Reward'}
                         icon={<Ionicons name="sparkles" size={14} color="#FFFFFF" />}
                         variant="gold"
                         size="sm"
@@ -245,10 +245,10 @@ export default function ProfileScreen() {
                     )}
 
                     {q.claimed && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="checkmark-circle" size={14} color={colors.primary} style={{ marginRight: 4 }} />
+                      <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
                         <Text style={{ color: colors.primary, fontSize: 12, fontWeight: 'bold' }}>
-                          Claimed
+                          {rtl ? 'تم الاستلام' : 'Claimed'}
                         </Text>
                       </View>
                     )}
@@ -261,8 +261,8 @@ export default function ProfileScreen() {
 
         {/* 4. Badges & Achievements Grid */}
         <Card style={[styles.achievementsCard, { marginBottom: spacing.lg }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.md }}>
-            <Ionicons name="ribbon-outline" size={20} color={colors.gold} style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.md, gap: 8 }}>
+            <Ionicons name="ribbon-outline" size={20} color={colors.gold} />
             <Text
               style={[
                 styles.sectionTitle,
@@ -274,7 +274,7 @@ export default function ProfileScreen() {
                 },
               ]}
             >
-              Badges & Achievements
+              {rtl ? 'الأوسمة والإنجازات' : 'Badges & Achievements'}
             </Text>
           </View>
 
@@ -323,7 +323,7 @@ export default function ProfileScreen() {
 
                   {isUnlocked && (
                     <Text style={{ color: colors.gold, fontSize: 9, fontWeight: 'bold', marginTop: 4 }}>
-                      UNLOCKED
+                      {rtl ? 'مفتوح 🏆' : 'UNLOCKED'}
                     </Text>
                   )}
                 </View>
@@ -334,8 +334,8 @@ export default function ProfileScreen() {
 
         {/* 5. Master Gamification Mode Switch */}
         <Card style={[styles.modeCard, { marginBottom: spacing.xl }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.xs }}>
-            <Ionicons name="game-controller-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.xs, gap: 8 }}>
+            <Ionicons name="game-controller-outline" size={20} color={colors.primary} />
             <Text
               style={[
                 styles.sectionTitle,
@@ -347,26 +347,28 @@ export default function ProfileScreen() {
                 },
               ]}
             >
-              Gamification Mode
+              {rtl ? 'نمط التحفيز والمكافآت' : 'Gamification Mode'}
             </Text>
           </View>
           <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 12, textAlign: rtl ? 'right' : 'left' }}>
-            Choose whether to display playful XP and quests, or switch to minimal Anki-style study.
+            {rtl
+              ? 'اختر بين عرض نقاط الخبرة والمهام التحفيزية أو النمط المبسط الهادئ.'
+              : 'Choose whether to display playful XP and quests, or switch to minimal Anki-style study.'}
           </Text>
 
           <View style={[styles.chipsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <Chip
-              label="Playful (Full)"
+              label={rtl ? 'تحفيزي كامل' : 'Playful (Full)'}
               selected={gameMode === 'full'}
               onPress={() => handleModeChange('full')}
             />
             <Chip
-              label="Minimal (Anki-style)"
+              label={rtl ? 'مبسط (نمط أنكي)' : 'Minimal (Anki-style)'}
               selected={gameMode === 'minimal'}
               onPress={() => handleModeChange('minimal')}
             />
             <Chip
-              label="Off"
+              label={rtl ? 'معطّل' : 'Off'}
               selected={gameMode === 'off'}
               onPress={() => handleModeChange('off')}
             />

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -17,140 +16,8 @@ import { isRTL } from '../../i18n';
 import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { queueBuilder, StudyCardItem } from '../../core/scheduler/queueBuilder';
-import { TtsService, cleanTextForTts } from '../../core/audio/ttsService';
-import { audioService } from '../../core/audio/audioService';
-import { mediaManager } from '../../core/media/mediaManager';
-import { renderCard } from '../../core/render/templateEngine';
-
-type PlaybackPhase = 'idle' | 'word' | 'thinking' | 'explanation' | 'example' | 'wait_next';
-
-interface PodcastTracks {
-  wordText: string;
-  wordAudio: string | null;
-  explanationText: string;
-  explanationAudio: string | null;
-  exampleText: string;
-  exampleAudio: string | null;
-  extraAudios: string[];
-}
-
-function extractPodcastTracks(card: StudyCardItem, rendered: any): PodcastTracks {
-  const fields = card?.note_fields || {};
-
-  const getSoundFrom = (str: string | undefined): string | null => {
-    if (!str) return null;
-    const sounds = audioService.extractSoundTags(str);
-    return sounds.length > 0 ? sounds[0] : null;
-  };
-
-  // 1. Identify Word (Text & Audio)
-  const wordKey =
-    Object.keys(fields).find((k) =>
-      /word|expression|front|term|vocabulary|الكلمة|المفردة|المصطلح/i.test(k)
-    ) || Object.keys(fields)[0];
-
-  const wordText = cleanTextForTts(fields[wordKey] || Object.values(fields)[0] || 'Question');
-
-  let wordAudio: string | null = null;
-  if (rendered?.frontAudio && rendered.frontAudio.length > 0) {
-    wordAudio = rendered.frontAudio[0];
-  } else {
-    const wordAudioKey = Object.keys(fields).find((k) =>
-      /word.*audio|audio.*word|front.*audio|sound|نطق|صوت.*الكلمة/i.test(k)
-    );
-    if (wordAudioKey) {
-      wordAudio =
-        getSoundFrom(fields[wordAudioKey]) ||
-        (fields[wordAudioKey].endsWith('.mp3') ? fields[wordAudioKey] : null);
-    }
-    if (!wordAudio && wordKey) {
-      wordAudio = getSoundFrom(fields[wordKey]);
-    }
-  }
-
-  // 2. Identify Explanation / Meaning (Text & Audio)
-  const explanationKey =
-    Object.keys(fields).find((k) =>
-      /meaning|definition|explanation|translation|back|المعنى|الشرح|الترجمة|التعريف/i.test(k)
-    ) || Object.keys(fields)[1];
-
-  const explanationText = cleanTextForTts(fields[explanationKey] || Object.values(fields)[1] || '');
-
-  let explanationAudio: string | null = null;
-  const explanationAudioKey = Object.keys(fields).find((k) =>
-    /meaning.*audio|explanation.*audio|definition.*audio|translation.*audio|صوت.*المعنى|صوت.*الشرح|صوت.*الترجمة/i.test(k)
-  );
-  if (explanationAudioKey) {
-    explanationAudio =
-      getSoundFrom(fields[explanationAudioKey]) ||
-      (fields[explanationAudioKey].endsWith('.mp3') ? fields[explanationAudioKey] : null);
-  }
-
-  // 3. Identify Example / Sentence (Text & Audio)
-  const exampleKey =
-    Object.keys(fields).find((k) =>
-      /example|sentence|context|sample|المثال|الجملة|سياق/i.test(k)
-    ) || (Object.keys(fields).length > 2 ? Object.keys(fields)[2] : null);
-
-  const exampleText = exampleKey ? cleanTextForTts(fields[exampleKey]) : '';
-
-  let exampleAudio: string | null = null;
-  const exampleAudioKey = Object.keys(fields).find((k) =>
-    /example.*audio|sentence.*audio|context.*audio|صوت.*المثال|صوت.*الجملة/i.test(k)
-  );
-  if (exampleAudioKey) {
-    exampleAudio =
-      getSoundFrom(fields[exampleAudioKey]) ||
-      (fields[exampleAudioKey].endsWith('.mp3') ? fields[exampleAudioKey] : null);
-  }
-
-  // Distribute from rendered.backAudio if explanation or example audio not explicitly assigned
-  const backAudios: string[] = rendered?.backAudio || [];
-  let backIdx = 0;
-
-  if (!explanationAudio && backAudios.length > backIdx) {
-    explanationAudio = backAudios[backIdx];
-    backIdx++;
-  }
-  if (!exampleAudio && backAudios.length > backIdx) {
-    exampleAudio = backAudios[backIdx];
-    backIdx++;
-  }
-
-  // Fallbacks: search field values for sound tags
-  if (!explanationAudio && explanationKey) {
-    explanationAudio = getSoundFrom(fields[explanationKey]);
-  }
-  if (!exampleAudio && exampleKey) {
-    exampleAudio = getSoundFrom(fields[exampleKey]);
-  }
-
-  // Collect any remaining unused audio clips
-  const usedSounds = new Set([wordAudio, explanationAudio, exampleAudio].filter(Boolean));
-  const extraAudios: string[] = [];
-  for (const a of backAudios) {
-    if (!usedSounds.has(a) && !extraAudios.includes(a)) {
-      extraAudios.push(a);
-    }
-  }
-  for (const val of Object.values(fields)) {
-    const s = getSoundFrom(val);
-    if (s && !usedSounds.has(s) && !extraAudios.includes(s)) {
-      extraAudios.push(s);
-    }
-  }
-
-  return {
-    wordText,
-    wordAudio,
-    explanationText,
-    explanationAudio,
-    exampleText,
-    exampleAudio,
-    extraAudios,
-  };
-}
+import { queueBuilder } from '../../core/scheduler/queueBuilder';
+import { usePodcastPlayer } from '../../core/audio/usePodcastPlayer';
 
 export default function PodcastModeScreen() {
   const router = useRouter();
@@ -159,28 +26,40 @@ export default function PodcastModeScreen() {
   const theme = useTheme();
   const rtl = isRTL();
 
-  const [queue, setQueue] = useState<StudyCardItem[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [phase, setPhase] = useState<PlaybackPhase>('idle');
-  const [thinkingSeconds, setThinkingSeconds] = useState(3);
-  const [remainingThinking, setRemainingThinking] = useState(3);
-  const [speechRate, setSpeechRate] = useState(1.0);
-
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const isPlayingRef = useRef(isPlaying);
-  isPlayingRef.current = isPlaying;
 
-  const currentIndexRef = useRef(currentIndex);
-  currentIndexRef.current = currentIndex;
+  const {
+    isPlaying,
+    currentIndex,
+    queue,
+    phase,
+    remainingThinking,
+    thinkingSeconds,
+    speechRate,
+    currentCard,
+    tracks,
+    play,
+    pause,
+    togglePlay,
+    next,
+    prev,
+    replayCurrent,
+    stop,
+    setThinkingSeconds,
+    setSpeechRate,
+    setQueue,
+  } = usePodcastPlayer();
 
-  const queueRef = useRef<StudyCardItem[]>([]);
-  queueRef.current = queue;
-
-  // Load cards queue
+  // Load cards queue into global background player
   useEffect(() => {
     async function loadCards() {
+      // If player already has a queue with cards for this deck and is playing, don't restart
+      if (queue.length > 0 && isPlaying) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         const [reviewCards, learnCards] = await Promise.all([
@@ -194,7 +73,8 @@ export default function PodcastModeScreen() {
           allCards = await queueBuilder.buildReviewQueue(params.deckId, undefined, 'all');
         }
 
-        setQueue(allCards);
+        const deckName = allCards[0]?.deck_name || 'Flashcards Podcast';
+        setQueue(allCards, 0, deckName);
       } catch (e) {
         console.warn('Failed to load queue for podcast mode:', e);
       } finally {
@@ -202,11 +82,6 @@ export default function PodcastModeScreen() {
       }
     }
     loadCards();
-
-    return () => {
-      TtsService.stop();
-      audioService.stop();
-    };
   }, [params.deckId]);
 
   // Pulse animation when speaking or playing audio
@@ -230,171 +105,6 @@ export default function PodcastModeScreen() {
       pulseAnim.setValue(1);
     }
   }, [phase]);
-
-  // Main Podcast playback step loop: Word -> Thinking -> Explanation -> Example -> Next
-  const playCurrentCard = async () => {
-    if (!isPlayingRef.current) return;
-    const cards = queueRef.current;
-    const idx = currentIndexRef.current;
-    if (idx >= cards.length) {
-      setIsPlaying(false);
-      setPhase('idle');
-      return;
-    }
-
-    const card = cards[idx];
-    const rendered = renderCard({
-      frontTemplate: card.front_template,
-      backTemplate: card.back_template,
-      fields: card.note_fields,
-      css: card.css,
-      templateOrd: card.template_ord,
-      deckName: card.deck_name,
-    });
-
-    const tracks = extractPodcastTracks(card, rendered);
-
-    // 1. Play Word Audio (الكلمة)
-    setPhase('word');
-    let playedWord = false;
-    if (tracks.wordAudio) {
-      playedWord = await audioService.playAndWait(tracks.wordAudio);
-    }
-    if (!playedWord && tracks.wordText) {
-      await new Promise<void>((resolve) => {
-        TtsService.speak(tracks.wordText, {
-          rate: speechRate,
-          onDone: () => resolve(),
-          onError: () => resolve(),
-        });
-      });
-    }
-
-    if (!isPlayingRef.current) return;
-
-    // 2. Thinking Pause (فترة التفكير للتذكر)
-    if (thinkingSeconds > 0) {
-      setPhase('thinking');
-      for (let s = thinkingSeconds; s > 0; s--) {
-        if (!isPlayingRef.current) return;
-        setRemainingThinking(s);
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      setRemainingThinking(0);
-    }
-
-    if (!isPlayingRef.current) return;
-
-    // 3. Play Explanation Audio (مقطع الشرح / المعنى)
-    setPhase('explanation');
-    let playedExp = false;
-    if (tracks.explanationAudio) {
-      playedExp = await audioService.playAndWait(tracks.explanationAudio);
-    }
-    if (!playedExp && tracks.explanationText && !tracks.explanationText.includes('<img')) {
-      await new Promise<void>((resolve) => {
-        TtsService.speak(tracks.explanationText, {
-          rate: speechRate,
-          onDone: () => resolve(),
-          onError: () => resolve(),
-        });
-      });
-    }
-
-    if (!isPlayingRef.current) return;
-
-    // Brief natural pause between explanation and example
-    await new Promise((r) => setTimeout(r, 700));
-
-    if (!isPlayingRef.current) return;
-
-    // 4. Play Example Audio (مقطع المثال)
-    if (tracks.exampleAudio || (tracks.exampleText && !tracks.exampleText.includes('<img'))) {
-      setPhase('example');
-      let playedEx = false;
-      if (tracks.exampleAudio) {
-        playedEx = await audioService.playAndWait(tracks.exampleAudio);
-      }
-      if (!playedEx && tracks.exampleText) {
-        await new Promise<void>((resolve) => {
-          TtsService.speak(tracks.exampleText, {
-            rate: speechRate,
-            onDone: () => resolve(),
-            onError: () => resolve(),
-          });
-        });
-      }
-    }
-
-    if (!isPlayingRef.current) return;
-
-    // 5. Play any extra audio clips on the card
-    for (const extra of tracks.extraAudios) {
-      if (!isPlayingRef.current) return;
-      await new Promise((r) => setTimeout(r, 500));
-      await audioService.playAndWait(extra);
-    }
-
-    if (!isPlayingRef.current) return;
-
-    // 6. Brief pause before advancing to next card
-    setPhase('wait_next');
-    await new Promise((r) => setTimeout(r, 1200));
-
-    if (!isPlayingRef.current) return;
-
-    // 7. Advance to next card
-    if (currentIndexRef.current + 1 < cards.length) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      setIsPlaying(false);
-      setPhase('idle');
-    }
-  };
-
-  useEffect(() => {
-    if (isPlaying) {
-      playCurrentCard();
-    } else {
-      TtsService.stop();
-      audioService.stop();
-      setPhase('idle');
-    }
-  }, [isPlaying, currentIndex]);
-
-  const togglePlay = () => {
-    if (isPlaying) {
-      setIsPlaying(false);
-      TtsService.stop();
-      audioService.stop();
-    } else {
-      setIsPlaying(true);
-    }
-  };
-
-  const handleNext = () => {
-    TtsService.stop();
-    audioService.stop();
-    if (currentIndex + 1 < queue.length) {
-      setCurrentIndex((prev) => prev + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    TtsService.stop();
-    audioService.stop();
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-    }
-  };
-
-  const handleReplay = () => {
-    TtsService.stop();
-    audioService.stop();
-    if (isPlaying) {
-      playCurrentCard();
-    }
-  };
 
   if (loading) {
     return (
@@ -423,20 +133,6 @@ export default function PodcastModeScreen() {
       </SafeAreaView>
     );
   }
-
-  const currentCard = queue[currentIndex];
-  const rendered = currentCard
-    ? renderCard({
-        frontTemplate: currentCard.front_template,
-        backTemplate: currentCard.back_template,
-        fields: currentCard.note_fields,
-        css: currentCard.css,
-        templateOrd: currentCard.template_ord,
-        deckName: currentCard.deck_name,
-      })
-    : null;
-
-  const currentTracks = currentCard ? extractPodcastTracks(currentCard, rendered) : null;
 
   // Phase color & status text mapping
   const getPhaseOrbColor = () => {
@@ -496,22 +192,49 @@ export default function PodcastModeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       <Header
         title={rtl ? 'وضع البودكاست والاستماع' : (t('study.podcastMode') || 'Podcast Mode')}
-        onBack={() => {
-          TtsService.stop();
-          audioService.stop();
-          router.back();
-        }}
+        onBack={() => router.back()}
       />
 
       <View style={styles.content}>
         {/* Progress & Counter */}
-        <View style={styles.progressRow}>
+        <View style={[styles.progressRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
           <Text style={[styles.counterText, { color: theme.colors.textMuted }]}>
             {currentIndex + 1} / {queue.length}
           </Text>
           <View style={{ flex: 1, marginHorizontal: 12 }}>
             <ProgressBar progress={(currentIndex + 1) / queue.length} height={8} />
           </View>
+        </View>
+
+        {/* Background Status Indicator */}
+        <View
+          style={[
+            styles.bgStatusPill,
+            {
+              backgroundColor: isPlaying
+                ? (theme.colors.primary + '18')
+                : (theme.colors.surface),
+              borderColor: isPlaying ? theme.colors.primary : theme.colors.border,
+              flexDirection: rtl ? 'row-reverse' : 'row',
+              gap: 8,
+            },
+          ]}
+        >
+          <Ionicons
+            name={isPlaying ? 'radio' : 'pause-circle-outline'}
+            size={16}
+            color={isPlaying ? theme.colors.primary : theme.colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.bgStatusText,
+              { color: isPlaying ? theme.colors.primary : theme.colors.textMuted },
+            ]}
+          >
+            {isPlaying
+              ? (rtl ? 'يعمل في الخلفية • المشغل نشط في الإشعارات' : 'Playing in background • Active in notifications')
+              : (rtl ? 'المشغل متوقف مؤقتاً' : 'Player paused')}
+          </Text>
         </View>
 
         {/* Visual Pulse Waveform Orb */}
@@ -548,7 +271,7 @@ export default function PodcastModeScreen() {
             style={[styles.previewText, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}
             numberOfLines={2}
           >
-            {currentTracks?.wordText || '...'}
+            {tracks?.wordText || '...'}
           </Text>
 
           <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
@@ -560,7 +283,7 @@ export default function PodcastModeScreen() {
 
           {phase !== 'word' && phase !== 'thinking' ? (
             <View>
-              {currentTracks?.explanationText ? (
+              {tracks?.explanationText ? (
                 <Text
                   style={[
                     styles.previewText,
@@ -568,16 +291,16 @@ export default function PodcastModeScreen() {
                       color: phase === 'explanation' ? theme.colors.primary : theme.colors.text,
                       fontWeight: phase === 'explanation' ? 'bold' : '600',
                       textAlign: rtl ? 'right' : 'left',
-                      marginBottom: currentTracks?.exampleText ? 6 : 0,
+                      marginBottom: tracks?.exampleText ? 6 : 0,
                     },
                   ]}
                   numberOfLines={2}
                 >
-                  {currentTracks.explanationText}
+                  {tracks.explanationText}
                 </Text>
               ) : null}
 
-              {currentTracks?.exampleText ? (
+              {tracks?.exampleText ? (
                 <Text
                   style={[
                     styles.previewText,
@@ -590,7 +313,7 @@ export default function PodcastModeScreen() {
                   ]}
                   numberOfLines={3}
                 >
-                  "{currentTracks.exampleText}"
+                  "{tracks.exampleText}"
                 </Text>
               ) : null}
             </View>
@@ -602,8 +325,8 @@ export default function PodcastModeScreen() {
         </Card>
 
         {/* Settings Bar (Thinking duration & Speed) */}
-        <View style={styles.settingsRow}>
-          <View style={styles.chipGroup}>
+        <View style={[styles.settingsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.chipGroup, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <Text style={[styles.chipGroupLabel, { color: theme.colors.textMuted }]}>
               {rtl ? 'التفكير:' : (t('study.delay') || 'Pause:')}
             </Text>
@@ -631,7 +354,7 @@ export default function PodcastModeScreen() {
             ))}
           </View>
 
-          <View style={styles.chipGroup}>
+          <View style={[styles.chipGroup, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <Text style={[styles.chipGroupLabel, { color: theme.colors.textMuted }]}>
               {rtl ? 'السرعة:' : (t('study.speed') || 'Speed:')}
             </Text>
@@ -661,15 +384,18 @@ export default function PodcastModeScreen() {
         </View>
 
         {/* Media Controls Bar */}
-        <View style={styles.mediaBar}>
-          <TouchableOpacity style={styles.secControlBtn} onPress={handlePrev} activeOpacity={0.7}>
-            <Ionicons name="play-skip-back" size={26} color={theme.colors.text} />
+        <View style={[styles.mediaBar, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          {/* Previous Card */}
+          <TouchableOpacity style={styles.secControlBtn} onPress={prev} activeOpacity={0.7}>
+            <Ionicons name={rtl ? 'play-skip-forward' : 'play-skip-back'} size={26} color={theme.colors.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secControlBtn} onPress={handleReplay} activeOpacity={0.7}>
+          {/* Replay Current Card */}
+          <TouchableOpacity style={styles.secControlBtn} onPress={replayCurrent} activeOpacity={0.7}>
             <Ionicons name="repeat" size={24} color={theme.colors.text} />
           </TouchableOpacity>
 
+          {/* Play / Pause Toggle Button */}
           <TouchableOpacity
             style={[
               styles.playBtn,
@@ -689,8 +415,18 @@ export default function PodcastModeScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secControlBtn} onPress={handleNext} activeOpacity={0.7}>
-            <Ionicons name="play-skip-forward" size={26} color={theme.colors.text} />
+          {/* Next Card */}
+          <TouchableOpacity style={styles.secControlBtn} onPress={next} activeOpacity={0.7}>
+            <Ionicons name={rtl ? 'play-skip-back' : 'play-skip-forward'} size={26} color={theme.colors.text} />
+          </TouchableOpacity>
+
+          {/* Stop Button */}
+          <TouchableOpacity
+            style={[styles.secControlBtn, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
+            onPress={stop}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="stop" size={20} color={theme.colors.error || '#EF4444'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -722,6 +458,22 @@ const styles = StyleSheet.create({
   },
   counterText: {
     fontSize: 14,
+    fontWeight: '700',
+  },
+  bgStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: 'center',
+    marginVertical: 4,
+  },
+  bgStatusText: {
+    fontSize: 12,
     fontWeight: '700',
   },
   orbContainer: {
@@ -792,22 +544,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 20,
+    gap: 14,
     paddingBottom: 16,
   },
   playBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     borderWidth: 3,
     borderBottomWidth: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
   secControlBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -3,7 +3,8 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Platform } from 'react-native';
 import JSZip from 'jszip';
-import { getDatabase, closeDatabase, checkpointDatabase, checkDatabaseIntegrity } from '../db/connection';
+import { deserializeDatabaseAsync, backupDatabaseAsync } from 'expo-sqlite';
+import { getDatabase, checkpointDatabase, checkDatabaseIntegrity } from '../db/connection';
 
 export interface BackupMetadata {
   version: number;
@@ -32,9 +33,20 @@ export interface RestoreResult {
   deckCount?: number;
 }
 
+export type BackupStage = 'preparing' | 'database' | 'media' | 'compressing' | 'saving' | 'complete';
+
+export interface BackupProgress {
+  percent: number; // 0 to 100
+  stage: BackupStage;
+  message: string;
+  detail?: string;
+  cardCount?: number;
+  deckCount?: number;
+  mediaCount?: number;
+}
+
 const BACKUPS_DIR = `${FileSystem.documentDirectory}backups/`;
 const MEDIA_DIR = `${FileSystem.documentDirectory}media/`;
-const DB_PATH = `${FileSystem.documentDirectory}SQLite/flashcards.db`;
 const MAX_ROLLING_BACKUPS = 5;
 
 export class BackupService {
@@ -50,14 +62,29 @@ export class BackupService {
 
   /**
    * Creates a full offline backup (database + all media assets) in a single timestamped zip file.
+   * Reports real-time progress callbacks across all backup stages.
    */
-  static async createBackup(): Promise<BackupInfo> {
+  static async createBackup(onProgress?: (progress: BackupProgress) => void): Promise<BackupInfo> {
+    onProgress?.({
+      percent: 5,
+      stage: 'preparing',
+      message: 'جاري تهيئة بيئة النسخ الاحتياطي...',
+      detail: 'فحص الحاويات ومزامنة الذاكرة',
+    });
+
     await this.ensureBackupsDir();
 
     // 1. Flush WAL to write all transactions into the primary db file
     await checkpointDatabase();
 
     const db = await getDatabase();
+
+    onProgress?.({
+      percent: 15,
+      stage: 'database',
+      message: 'جاري استخراج بيانات البطاقات والرزم...',
+      detail: 'قراءة الجداول والإحصائيات',
+    });
 
     // 2. Gather counts for metadata
     const cardsCountRes = await db.getFirstAsync<{ count: number }>('SELECT count(*) as count FROM cards');
@@ -70,28 +97,44 @@ export class BackupService {
     const deckCount = decksCountRes?.count || 0;
     const mediaCount = mediaCountRes?.count || 0;
 
-    // 3. Read SQLite database file
-    const dbInfo = await FileSystem.getInfoAsync(DB_PATH);
-    if (!dbInfo.exists) {
-      throw new Error('Database file not found at ' + DB_PATH);
-    }
-    const dbSizeBytes = 'size' in dbInfo ? dbInfo.size || 0 : 0;
-
-    const dbBase64 = await FileSystem.readAsStringAsync(DB_PATH, {
-      encoding: FileSystem.EncodingType.Base64,
+    onProgress?.({
+      percent: 25,
+      stage: 'database',
+      message: 'جاري تشفير لقطة الذاكرة وقاعدة البيانات...',
+      detail: `${cardCount} بطاقة • ${deckCount} رزم`,
+      cardCount,
+      deckCount,
+      mediaCount,
     });
+
+    // 3. Serialize SQLite database to Uint8Array directly via SQLite C API
+    // This avoids ExponentFileSystem permission restrictions on Android /databases/ directory
+    const dbBytes = await db.serializeAsync('main');
+    const dbSizeBytes = dbBytes.byteLength;
 
     // 4. Build zip
     const zip = new JSZip();
-    zip.file('flashcards.db', dbBase64, { base64: true });
+    zip.file('flashcards.db', dbBytes);
+
+    onProgress?.({
+      percent: 40,
+      stage: 'media',
+      message: 'جاري فحص وحزم الوسائط والصوتيات...',
+      detail: 'فحص ملفات الوسائط المحلية',
+      cardCount,
+      deckCount,
+      mediaCount,
+    });
 
     // 5. Gather all local media files
     const mediaDirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
     let actualMediaFilesCount = 0;
     if (mediaDirInfo.exists && mediaDirInfo.isDirectory) {
       const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
+      const totalFiles = files.length;
       const mediaZipFolder = zip.folder('media');
-      for (const f of files) {
+      for (let i = 0; i < totalFiles; i++) {
+        const f = files[i];
         try {
           const mPath = `${MEDIA_DIR}${f}`;
           const mInfo = await FileSystem.getInfoAsync(mPath);
@@ -104,6 +147,20 @@ export class BackupService {
           }
         } catch (e) {
           console.warn(`Failed to package media file ${f}:`, e);
+        }
+
+        // Report granular media progress every few files or proportionally
+        if (i % 3 === 0 || i === totalFiles - 1) {
+          const mediaPct = Math.round(40 + ((i + 1) / totalFiles) * 35);
+          onProgress?.({
+            percent: Math.min(75, mediaPct),
+            stage: 'media',
+            message: 'جاري حزم الوسائط والصوتيات...',
+            detail: `${i + 1} من ${totalFiles} ملف وسائط`,
+            cardCount,
+            deckCount,
+            mediaCount: actualMediaFilesCount,
+          });
         }
       }
     }
@@ -123,11 +180,45 @@ export class BackupService {
 
     zip.file('meta.json', JSON.stringify(metadata, null, 2));
 
-    // 6. Generate ZIP file
-    const zipBase64 = await zip.generateAsync({
-      type: 'base64',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
+    onProgress?.({
+      percent: 78,
+      stage: 'compressing',
+      message: 'جاري ضغط الأرشيف وإنشاء الحزمة...',
+      detail: 'خوارزمية DEFLATE المشفرة',
+      cardCount,
+      deckCount,
+      mediaCount: metadata.mediaCount,
+    });
+
+    // 6. Generate ZIP file with live compression progress
+    const zipBase64 = await zip.generateAsync(
+      {
+        type: 'base64',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 },
+      },
+      (metadataObj) => {
+        const compPct = Math.round(78 + (metadataObj.percent / 100) * 16);
+        onProgress?.({
+          percent: Math.min(94, compPct),
+          stage: 'compressing',
+          message: 'جاري ضغط الأرشيف وإنشاء الحزمة...',
+          detail: `${Math.round(metadataObj.percent)}% مكتمل`,
+          cardCount,
+          deckCount,
+          mediaCount: metadata.mediaCount,
+        });
+      }
+    );
+
+    onProgress?.({
+      percent: 95,
+      stage: 'saving',
+      message: 'جاري حفظ النسخة الاحتياطية...',
+      detail: 'كتابة ملف الأرشيف الآمن',
+      cardCount,
+      deckCount,
+      mediaCount: metadata.mediaCount,
     });
 
     const dateStr = new Date(now)
@@ -147,6 +238,16 @@ export class BackupService {
 
     // 7. Auto prune rolling backups (keep latest MAX_ROLLING_BACKUPS)
     await this.pruneRollingBackups(MAX_ROLLING_BACKUPS);
+
+    onProgress?.({
+      percent: 100,
+      stage: 'complete',
+      message: 'تم إنشاء النسخة الاحتياطية بنجاح!',
+      detail: fileName,
+      cardCount,
+      deckCount,
+      mediaCount: metadata.mediaCount,
+    });
 
     return {
       fileName,
@@ -191,38 +292,28 @@ export class BackupService {
       }
     }
 
-    // 2. Unpack database to temporary staging file
-    const restoredDbBase64 = await dbEntry.async('base64');
-    const stagingDbPath = `${FileSystem.documentDirectory}SQLite/flashcards_staging.db`;
+    // 2. Extract restored database binary from zip
+    const restoredBytes = await dbEntry.async('uint8array');
 
-    await FileSystem.writeAsStringAsync(stagingDbPath, restoredDbBase64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    const targetDb = await getDatabase();
 
-    // 3. Close active SQLite connection
-    await closeDatabase();
+    // 3. Create safety checkpoint in-memory
+    const safetyBytes = await targetDb.serializeAsync('main');
 
-    // 4. Create safety backup of existing database in case restore fails
-    const safetyDbPath = `${DB_PATH}.pre_restore_bak`;
-    const curDbInfo = await FileSystem.getInfoAsync(DB_PATH);
-    if (curDbInfo.exists) {
-      try {
-        await FileSystem.copyAsync({ from: DB_PATH, to: safetyDbPath });
-      } catch (e) {
-        console.warn('Could not create safety backup:', e);
-      }
-    }
+    // 4. Load restored data into an in-memory database instance
+    const sourceDb = await deserializeDatabaseAsync(restoredBytes);
 
     try {
-      // Overwrite main db with staging db
-      await FileSystem.copyAsync({ from: stagingDbPath, to: DB_PATH });
-      await FileSystem.deleteAsync(stagingDbPath, { idempotent: true });
+      // 5. Transfer all data using SQLite native online backup API
+      await backupDatabaseAsync({
+        sourceDatabase: sourceDb,
+        destDatabase: targetDb,
+      });
 
-      // Clean up stale WAL / SHM files if any
-      await FileSystem.deleteAsync(`${DB_PATH}-wal`, { idempotent: true });
-      await FileSystem.deleteAsync(`${DB_PATH}-shm`, { idempotent: true });
+      await sourceDb.closeAsync();
+      await checkpointDatabase();
 
-      // 5. Restore media files
+      // 6. Restore media files
       const mediaDirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
       if (!mediaDirInfo.exists) {
         await FileSystem.makeDirectoryAsync(MEDIA_DIR, { intermediates: true });
@@ -247,18 +338,14 @@ export class BackupService {
         await Promise.all(filePromises);
       }
 
-      // 6. Test restored database integrity
+      // 7. Test restored database integrity
       const check = await checkDatabaseIntegrity();
       if (!check.ok) {
         throw new Error(`Restored database failed integrity check: ${check.message}`);
       }
 
-      // Database is healthy, remove emergency backup
-      await FileSystem.deleteAsync(safetyDbPath, { idempotent: true });
-
-      const newDb = await getDatabase();
-      const finalCards = await newDb.getFirstAsync<{ count: number }>('SELECT count(*) as count FROM cards');
-      const finalDecks = await newDb.getFirstAsync<{ count: number }>('SELECT count(*) as count FROM decks');
+      const finalCards = await targetDb.getFirstAsync<{ count: number }>('SELECT count(*) as count FROM cards');
+      const finalDecks = await targetDb.getFirstAsync<{ count: number }>('SELECT count(*) as count FROM decks');
 
       return {
         success: true,
@@ -267,13 +354,18 @@ export class BackupService {
         deckCount: finalDecks?.count || meta?.deckCount || 0,
       };
     } catch (err: any) {
-      // Rollback to safety backup
+      // Rollback to safety checkpoint in memory
       console.error('Restore failed, rolling back to pre-restore backup:', err);
-      const safetyInfo = await FileSystem.getInfoAsync(safetyDbPath);
-      if (safetyInfo.exists) {
-        try {
-          await FileSystem.copyAsync({ from: safetyDbPath, to: DB_PATH });
-        } catch {}
+      try {
+        const rollbackDb = await deserializeDatabaseAsync(safetyBytes);
+        await backupDatabaseAsync({
+          sourceDatabase: rollbackDb,
+          destDatabase: targetDb,
+        });
+        await rollbackDb.closeAsync();
+        await checkpointDatabase();
+      } catch (rollbackErr) {
+        console.error('Failed to rollback:', rollbackErr);
       }
       throw new Error(`Failed to restore backup: ${err.message || 'Unknown error'}`);
     }

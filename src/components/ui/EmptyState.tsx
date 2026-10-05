@@ -3,9 +3,20 @@ import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
 import { Button } from './Button';
+import {
+  Logo,
+  EmptyStudyIllustration,
+  EmptySearchIllustration,
+  SessionCompleteIllustration,
+  VaultBackupIllustration,
+} from '../brand';
+
+export type EmptyIllustrationType = 'study' | 'search' | 'complete' | 'backup';
 
 interface EmptyStateProps {
   icon?: keyof typeof Ionicons.glyphMap | React.ReactNode | string;
+  branded?: boolean;
+  illustration?: EmptyIllustrationType;
   title: string;
   description: string;
   actionTitle?: string;
@@ -14,7 +25,9 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon = 'file-tray-outline',
+  icon,
+  branded = false,
+  illustration,
   title,
   description,
   actionTitle,
@@ -23,7 +36,22 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   const { colors, typography, spacing } = useTheme();
 
-  const renderIcon = () => {
+  const isIllustrated = branded || !!illustration || icon === 'branded';
+
+  const renderVisual = () => {
+    if (illustration === 'search') {
+      return <EmptySearchIllustration size={140} />;
+    }
+    if (illustration === 'complete') {
+      return <SessionCompleteIllustration size={140} />;
+    }
+    if (illustration === 'backup') {
+      return <VaultBackupIllustration size={130} />;
+    }
+    if (branded || illustration === 'study' || icon === 'branded') {
+      return <EmptyStudyIllustration size={150} />;
+    }
+
     if (typeof icon === 'string') {
       if (icon in Ionicons.glyphMap) {
         return (
@@ -36,22 +64,34 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       }
       return <Text style={styles.icon}>{icon}</Text>;
     }
-    return icon;
+
+    if (icon) {
+      return icon;
+    }
+
+    // Default to branded study illustration
+    return <EmptyStudyIllustration size={150} />;
   };
 
   return (
     <View style={[styles.container, style]}>
-      <View
-        style={[
-          styles.iconContainer,
-          {
-            backgroundColor: colors.surfaceRaised,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        {renderIcon()}
-      </View>
+      {isIllustrated || !icon ? (
+        <View style={styles.illustrationWrapper}>
+          {renderVisual()}
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: colors.surfaceRaised,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          {renderVisual()}
+        </View>
+      )}
 
       <Text
         style={[
@@ -96,19 +136,25 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
   },
-  iconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
+  illustrationWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
   icon: {
-    fontSize: 32,
+    fontSize: 36,
   },
   title: {
     textAlign: 'center',

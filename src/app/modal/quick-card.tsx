@@ -132,7 +132,15 @@ export default function QuickCardModal() {
             },
           ]}
         >
-          <View style={styles.tagBadge}>
+          <View
+            style={[
+              styles.tagBadge,
+              {
+                left: rtl ? 14 : undefined,
+                right: rtl ? undefined : 14,
+              },
+            ]}
+          >
             <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>
               {card.deck_name || 'بطاقة المراجعة'}
             </Text>
@@ -186,6 +194,7 @@ export default function QuickCardModal() {
                   backgroundColor: `${colors.error}18`,
                   borderColor: colors.error,
                   opacity: pressed ? 0.8 : 1,
+                  flexDirection: rtl ? 'row-reverse' : 'row',
                 },
               ]}
             >
@@ -204,6 +213,7 @@ export default function QuickCardModal() {
                   backgroundColor: colors.primary,
                   borderColor: colors.primary,
                   opacity: pressed ? 0.8 : 1,
+                  flexDirection: rtl ? 'row-reverse' : 'row',
                 },
               ]}
             >

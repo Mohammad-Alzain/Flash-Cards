@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
 import { isRTL } from '../../i18n';
 import { Header, Card, Badge } from '../../components/ui';
+import { Logo } from '../../components/brand/Logo';
 
 export default function AboutSettingsScreen() {
   const router = useRouter();
@@ -24,9 +25,7 @@ export default function AboutSettingsScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {/* App Branding Card */}
         <Card style={[styles.brandCard, { borderColor: colors.primary, marginBottom: spacing.lg }]}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="albums" size={38} color={colors.primary} />
-          </View>
+          <Logo variant="mark" size={68} style={{ marginBottom: 14 }} />
 
           <Text style={[styles.appName, { color: colors.text }]}>
             {t('settings.app_name')}
@@ -34,9 +33,9 @@ export default function AboutSettingsScreen() {
 
           <Badge label={t('settings.version')} variant="neutral" style={{ marginTop: 6 }} />
 
-          <View style={[styles.offlineBanner, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, marginTop: 16 }]}>
+          <View style={[styles.offlineBanner, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, marginTop: 16, flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
-            <Text style={[styles.offlineTitle, { color: colors.text, marginRight: rtl ? 8 : 0, marginLeft: rtl ? 0 : 8 }]}>
+            <Text style={[styles.offlineTitle, { color: colors.text }]}>
               {t('settings.offline_badge')}
             </Text>
           </View>
@@ -59,12 +58,11 @@ export default function AboutSettingsScreen() {
             rtl ? 'أمان وقفل برمز PIN وتشفير محلي' : 'Local PIN App Lock & Privacy',
             rtl ? 'سبورة للكتابة باليد ونطق صوتي TTS' : 'Handwriting Whiteboard & TTS Audio',
           ].map((item, idx) => (
-            <View key={idx} style={[styles.featureRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <View key={idx} style={[styles.featureRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
               <Ionicons
                 name="checkmark-circle"
                 size={18}
                 color={colors.primary}
-                style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
               />
               <Text style={[styles.featureText, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                 {item}

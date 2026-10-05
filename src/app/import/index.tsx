@@ -290,6 +290,7 @@ export default function ImportWizardScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <Header
+        logo
         title={t('import_wizard.title')}
         onBack={() => router.back()}
         rightElement={
@@ -304,7 +305,7 @@ export default function ImportWizardScreen() {
       />
 
       {/* Tabs: Select File | Paste Text */}
-      <View style={[styles.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
         <Pressable
           onPress={() => setActiveTab('file')}
           style={[
@@ -312,12 +313,11 @@ export default function ImportWizardScreen() {
             activeTab === 'file' && { borderBottomColor: colors.primary, borderBottomWidth: 3 },
           ]}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons
               name="document-text-outline"
               size={18}
               color={activeTab === 'file' ? colors.primary : colors.textSecondary}
-              style={{ marginRight: 6 }}
             />
             <Text
               style={{
@@ -337,12 +337,11 @@ export default function ImportWizardScreen() {
             activeTab === 'paste' && { borderBottomColor: colors.primary, borderBottomWidth: 3 },
           ]}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons
               name="clipboard-outline"
               size={18}
               color={activeTab === 'paste' ? colors.primary : colors.textSecondary}
-              style={{ marginRight: 6 }}
             />
             <Text
               style={{

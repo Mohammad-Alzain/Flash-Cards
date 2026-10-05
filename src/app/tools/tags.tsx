@@ -62,7 +62,7 @@ export default function TagsManagerScreen() {
   const handleDeleteTag = (targetTag: string) => {
     CustomAlert.alert(
       t('common.delete'),
-      `Remove tag "${targetTag}" from all notes?`,
+      rtl ? `هل تريد حذف الوسم "${targetTag}" من جميع الملاحظات؟` : `Remove tag "${targetTag}" from all notes?`,
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -79,49 +79,48 @@ export default function TagsManagerScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <Header title="Tags Manager" onBack={() => router.back()} />
+      <Header title={rtl ? 'إدارة الوسوم' : 'Tags Manager'} onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {tags.length === 0 ? (
           <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>
-            No tags found in your collection.
+            {rtl ? 'لا توجد وسوم في مجموعتك بعد.' : 'No tags found in your collection.'}
           </Text>
         ) : (
           tags.map((item) => (
             <Card key={item.tag} style={[styles.tagCard, { marginBottom: spacing.sm }]}>
               <View style={[styles.tagRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
                 <View style={styles.tagInfoCol}>
-                  <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' }}>
-                      <Ionicons name="pricetag-outline" size={16} color={colors.primary} style={{ marginRight: rtl ? 0 : 4, marginLeft: rtl ? 4 : 0 }} />
-                      <Text
-                        style={[
-                          styles.tagName,
-                          {
-                            color: colors.text,
-                            fontSize: typography.sizes.md,
-                            fontWeight: typography.weights.bold,
-                            textAlign: rtl ? 'right' : 'left',
-                          },
-                        ]}
-                      >
-                        {item.tag}
-                      </Text>
-                    </View>
-                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-                    Used in {item.count} notes
+                  <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+                    <Text
+                      style={[
+                        styles.tagName,
+                        {
+                          color: colors.text,
+                          fontSize: typography.sizes.md,
+                          fontWeight: typography.weights.bold,
+                          textAlign: rtl ? 'right' : 'left',
+                        },
+                      ]}
+                    >
+                      {item.tag}
+                    </Text>
+                  </View>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2, textAlign: rtl ? 'right' : 'left' }}>
+                    {rtl ? `مستخدم في ${item.count} ملاحظة` : `Used in ${item.count} notes`}
                   </Text>
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
                   <Button
-                    title="Rename"
+                    title={rtl ? 'تعديل' : 'Rename'}
                     variant="ghost"
                     size="sm"
                     onPress={() => {
                       setRenameTarget(item.tag);
                       setNewTagName(item.tag);
                     }}
-                    style={{ marginRight: 6 }}
                   />
                   <Button
                     icon={<Ionicons name="trash-outline" size={16} color="#FFFFFF" />}
@@ -147,23 +146,23 @@ export default function TagsManagerScreen() {
       >
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { backgroundColor: colors.surfaceRaised }]}>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>
-              Rename Tag
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: rtl ? 'right' : 'left' }}>
+              {rtl ? 'تعديل اسم الوسم' : 'Rename Tag'}
             </Text>
 
             <TextField
-              label="New Tag Name"
+              label={rtl ? 'اسم الوسم الجديد' : 'New Tag Name'}
               value={newTagName}
               onChangeText={setNewTagName}
             />
 
-            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', marginTop: 16 }}>
+            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', gap: 8, marginTop: 16 }}>
               <Button
                 title={t('common.cancel')}
                 variant="ghost"
                 size="md"
                 onPress={() => setRenameTarget(null)}
-                style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
+                style={{ flex: 1 }}
               />
               <Button
                 title={t('common.save')}

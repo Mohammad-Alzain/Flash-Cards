@@ -26,6 +26,7 @@ import { Whiteboard } from '../../components/card/Whiteboard';
 import { TtsService } from '../../core/audio/ttsService';
 import { Ionicons } from '@expo/vector-icons';
 import { NoteEditorModal } from '../../components/card/NoteEditorModal';
+import { AIAssistantModal } from '../../components/card/AIAssistantModal';
 import { audioService } from '../../core/audio/audioService';
 import { settingsRepository } from '../../core/db/repositories/settingsRepository';
 import { mediaManager } from '../../core/media/mediaManager';
@@ -50,6 +51,7 @@ export default function ReviewScreen() {
   const [history, setHistory] = useState<string[]>([]);
   const [menuVisible, setMenuVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [aiModalVisible, setAiModalVisible] = useState(false);
 
   // Timer
   const cardStartTimeRef = useRef<number>(Date.now());
@@ -345,7 +347,7 @@ export default function ReviewScreen() {
 
         {/* Generous Center Progress Section */}
         <View style={styles.topCenter}>
-          <View style={[styles.progressRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.progressRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <View style={{ flex: 1 }}>
               <ProgressBar progress={progress} height={7} color={colors.primary} />
             </View>
@@ -355,8 +357,6 @@ export default function ReviewScreen() {
                 {
                   backgroundColor: `${colors.dueCards}18`,
                   borderColor: colors.dueCards,
-                  marginLeft: rtl ? 0 : 8,
-                  marginRight: rtl ? 8 : 0,
                 },
               ]}
             >
@@ -368,12 +368,12 @@ export default function ReviewScreen() {
         </View>
 
         {/* Right Corner: Undo + Menu */}
-        <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
           {history.length > 0 && (
             <Pressable
               onPress={handleUndo}
               hitSlop={8}
-              style={[styles.actionIconBtn, { marginRight: rtl ? 0 : 2, marginLeft: rtl ? 2 : 0 }]}
+              style={styles.actionIconBtn}
             >
               <Ionicons name="arrow-undo-outline" size={20} color={colors.text} />
             </Pressable>
@@ -406,11 +406,11 @@ export default function ReviewScreen() {
           hitSlop={6}
           style={({ pressed }) => [
             styles.toolChip,
-            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
           ]}
         >
           <Ionicons name="volume-high-outline" size={16} color={colors.primary} />
-          <Text style={[styles.toolChipText, { color: colors.text, marginHorizontal: 3 }]}>
+          <Text style={[styles.toolChipText, { color: colors.text }]}>
             {rtl ? 'صوت' : 'Audio'}
           </Text>
         </Pressable>
@@ -425,6 +425,7 @@ export default function ReviewScreen() {
               backgroundColor: autoPlayAudio ? `${colors.primary}18` : colors.surfaceRaised,
               borderColor: autoPlayAudio ? colors.primary : colors.border,
               opacity: pressed ? 0.7 : 1,
+              flexDirection: rtl ? 'row-reverse' : 'row',
             },
           ]}
         >
@@ -438,7 +439,6 @@ export default function ReviewScreen() {
               styles.toolChipText,
               {
                 color: autoPlayAudio ? colors.primary : colors.textSecondary,
-                marginHorizontal: 3,
               },
             ]}
           >
@@ -456,11 +456,12 @@ export default function ReviewScreen() {
               backgroundColor: whiteboardVisible ? `${colors.primary}22` : colors.surfaceRaised,
               borderColor: whiteboardVisible ? colors.primary : colors.border,
               opacity: pressed ? 0.7 : 1,
+              flexDirection: rtl ? 'row-reverse' : 'row',
             },
           ]}
         >
           <Ionicons name="brush-outline" size={16} color={colors.primary} />
-          <Text style={[styles.toolChipText, { color: colors.text, marginHorizontal: 3 }]}>
+          <Text style={[styles.toolChipText, { color: colors.text }]}>
             {rtl ? 'مسودة' : 'Draw'}
           </Text>
         </Pressable>
@@ -471,12 +472,27 @@ export default function ReviewScreen() {
           hitSlop={6}
           style={({ pressed }) => [
             styles.toolChip,
-            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
           ]}
         >
           <Ionicons name="headset-outline" size={16} color={colors.accent} />
-          <Text style={[styles.toolChipText, { color: colors.text, marginHorizontal: 3 }]}>
+          <Text style={[styles.toolChipText, { color: colors.text }]}>
             {rtl ? 'بودكاست' : 'Podcast'}
+          </Text>
+        </Pressable>
+
+        {/* AI Study Assistant */}
+        <Pressable
+          onPress={() => setAiModalVisible(true)}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.toolChip,
+            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
+          ]}
+        >
+          <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
+          <Text style={[styles.toolChipText, { color: colors.text }]}>
+            {rtl ? 'شرح ذكي' : 'AI Help'}
           </Text>
         </Pressable>
 
@@ -486,11 +502,11 @@ export default function ReviewScreen() {
           hitSlop={6}
           style={({ pressed }) => [
             styles.toolChip,
-            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1 },
+            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
           ]}
         >
           <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
-          <Text style={[styles.toolChipText, { color: colors.text, marginHorizontal: 3 }]}>
+          <Text style={[styles.toolChipText, { color: colors.text }]}>
             {rtl ? 'تعديل' : 'Edit'}
           </Text>
         </Pressable>
@@ -703,6 +719,18 @@ export default function ReviewScreen() {
           });
         }}
       />
+
+      {currentCard && (
+        <AIAssistantModal
+          visible={aiModalVisible}
+          onClose={() => setAiModalVisible(false)}
+          cardId={currentCard.id}
+          front={currentCard.note_fields?.Front || Object.values(currentCard.note_fields || {})[0] || ''}
+          back={currentCard.note_fields?.Back || Object.values(currentCard.note_fields || {})[1] || ''}
+          deckName={currentCard.deck_name}
+          fields={currentCard.note_fields}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -754,13 +782,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toolChip: {
-    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    gap: 5,
   },
   toolChipText: {
     fontSize: 11,

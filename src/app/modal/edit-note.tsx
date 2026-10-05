@@ -137,12 +137,11 @@ export default function EditNoteScreen() {
         >
           {/* Deck Picker */}
           <Card style={[styles.sectionCard, { marginBottom: spacing.md }]}>
-            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 8 }}>
+            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 8, gap: 6 }}>
               <Ionicons
                 name="albums-outline"
                 size={18}
                 color={colors.primary}
-                style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
               />
               <Text
                 style={[
@@ -158,7 +157,7 @@ export default function EditNoteScreen() {
                 {t('add_note.deck')}
               </Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               {decks.map((deck) => (
                 <Chip
                   key={deck.id}
@@ -190,11 +189,13 @@ export default function EditNoteScreen() {
                   {hasSound && (
                     <Pressable
                       onPress={() => handlePlayAudio(val)}
-                      style={[styles.audioBtn, { backgroundColor: colors.primary + '22' }]}
+                      style={[styles.audioBtn, { backgroundColor: colors.primary + '22', flexDirection: rtl ? 'row-reverse' : 'row', gap: 4 }]}
                       hitSlop={8}
                     >
                       <Ionicons name="volume-high-outline" size={16} color={colors.primary} />
-                      <Text style={{ color: colors.primary, fontSize: 12, marginLeft: 4 }}>Play Audio</Text>
+                      <Text style={{ color: colors.primary, fontSize: 12 }}>
+                        {t('study.play_audio') || (rtl ? 'تشغيل الصوت' : 'Play Audio')}
+                      </Text>
                     </Pressable>
                   )}
                 </View>
@@ -211,12 +212,11 @@ export default function EditNoteScreen() {
 
           {/* Tags */}
           <Card style={[styles.sectionCard, { marginBottom: spacing.lg }]}>
-            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 8 }}>
+            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 8, gap: 6 }}>
               <Ionicons
                 name="pricetag-outline"
                 size={18}
                 color={colors.primary}
-                style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
               />
               <Text
                 style={[

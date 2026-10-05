@@ -163,9 +163,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   clearBtn: {
-    paddingHorizontal: 12,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 8,
   },
   errorText: {},
 });

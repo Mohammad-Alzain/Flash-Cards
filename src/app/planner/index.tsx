@@ -120,8 +120,8 @@ export default function PlannerScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {/* 1. 14-Day Review Forecast */}
         <Card style={[styles.sectionCard, { marginBottom: spacing.lg }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.md }}>
-            <Ionicons name="trending-up-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.md, gap: 8 }}>
+            <Ionicons name="trending-up-outline" size={20} color={colors.primary} />
             <Text
               style={[
                 styles.sectionTitle,
@@ -137,7 +137,12 @@ export default function PlannerScreen() {
             </Text>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chartScroll}
+            contentContainerStyle={{ flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }}
+          >
             {forecast.map((day, i) => {
               const barRatio = day.dueCount / maxDueInForecast;
               const isToday = i === 0;
@@ -169,7 +174,7 @@ export default function PlannerScreen() {
                       },
                     ]}
                   >
-                    {isToday ? 'Today' : day.dayLabel}
+                    {isToday ? (rtl ? 'اليوم' : 'Today') : day.dayLabel}
                   </Text>
                   <Text style={{ color: colors.textMuted, fontSize: 10 }}>
                     {day.dateStr.slice(5)}
@@ -182,8 +187,8 @@ export default function PlannerScreen() {
 
         {/* 2. Exam & Target Date Planner */}
         <Card style={[styles.sectionCard, { marginBottom: spacing.lg }]}>
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.xs }}>
-            <Ionicons name="calendar-outline" size={20} color={colors.primary} style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }} />
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: spacing.xs, gap: 8 }}>
+            <Ionicons name="calendar-outline" size={20} color={colors.primary} />
             <Text
               style={[
                 styles.sectionTitle,
@@ -200,11 +205,13 @@ export default function PlannerScreen() {
           </View>
 
           <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: spacing.md, textAlign: rtl ? 'right' : 'left' }}>
-            Calculate the exact daily study quota needed to finish all new cards before your exam date.
+            {rtl
+              ? 'احسب الحصة اليومية الدقيقة لدراسة البطاقات الجديدة قبل موعد امتحانك.'
+              : 'Calculate the exact daily study quota needed to finish all new cards before your exam date.'}
           </Text>
 
-          <View style={[styles.inputRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            <View style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}>
+          <View style={[styles.inputRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
+            <View style={{ flex: 1 }}>
               <TextField
                 label={t('planner.days_until_exam')}
                 value={daysUntilExam}
@@ -216,7 +223,7 @@ export default function PlannerScreen() {
               />
             </View>
             <Button
-              title="Recalculate"
+              title={rtl ? 'إعادة الحساب' : 'Recalculate'}
               variant="secondary"
               size="md"
               onPress={handleRecalculatePace}
@@ -297,12 +304,11 @@ export default function PlannerScreen() {
                   </Text>
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
                   <Switch
                     value={sch.enabled === 1}
                     onValueChange={(val) => handleToggleSchedule(sch.id, val)}
                     trackColor={{ true: colors.primary, false: colors.border }}
-                    style={{ marginRight: 12 }}
                   />
 
                   <Button
@@ -341,13 +347,13 @@ export default function PlannerScreen() {
               placeholder="HH:MM (24-hour format e.g. 08:30)"
             />
 
-            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', marginTop: 16 }}>
+            <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', marginTop: 16, gap: 10 }}>
               <Button
                 title={t('common.cancel')}
                 variant="ghost"
                 size="md"
                 onPress={() => setReminderModalVisible(false)}
-                style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
+                style={{ flex: 1 }}
               />
               <Button
                 title={t('common.save')}

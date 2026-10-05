@@ -12,7 +12,9 @@ export type QuizMode =
   | 'survival'
   | 'matching'
   | 'match'
-  | 'mistakes';
+  | 'mistakes'
+  | 'written_ai'
+  | 'mixed';
 
 export interface QuizConfig {
   mode: QuizMode;
@@ -49,6 +51,14 @@ export interface UserAnswerRecord {
   correctAnswer: string;
   isCorrect: boolean;
   timeMs: number;
+  ai_answer?: string;
+  ai_verdict?: 'correct' | 'partial' | 'incorrect';
+  ai_score?: number;
+  ai_feedback?: string;
+  ai_tip?: string;
+  ai_confidence?: number;
+  manual_override?: string;
+  is_marked_for_review?: boolean;
 }
 
 export interface QuizResultSummary {
@@ -61,4 +71,5 @@ export interface QuizResultSummary {
   xpEarned: number;
   passed?: boolean;
   answers: UserAnswerRecord[];
+  overallAnalysis?: string;
 }

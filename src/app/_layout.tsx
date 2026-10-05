@@ -15,10 +15,11 @@ import { LockOverlay } from '../components/security/LockOverlay';
 import { CustomDialogContainer } from '../components/common/CustomDialog';
 import { settingsRepository } from '../core/db/repositories/settingsRepository';
 import { notificationService } from '../core/notifications/notificationService';
+import { Logo } from '../components/brand/Logo';
 
 function RootApp() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, spacing } = useTheme();
   const [dbReady, setDbReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
@@ -125,10 +126,8 @@ function RootApp() {
   if (!dbReady) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-          Loading Flashcards...
-        </Text>
+        <Logo variant="lockup" size={52} subtitle style={{ marginBottom: spacing.xl }} />
+        <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
   }

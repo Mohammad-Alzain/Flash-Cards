@@ -116,12 +116,11 @@ export default function DataSettingsScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {/* Storage Stats Card */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="server-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'إحصائيات التخزين المحلي' : 'Local Storage Statistics'}
@@ -144,12 +143,11 @@ export default function DataSettingsScreen() {
 
         {/* Maintenance Actions Card */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="construct-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'الصيانة والفحص' : 'Maintenance & Health'}
@@ -184,12 +182,11 @@ export default function DataSettingsScreen() {
 
         {/* Danger Zone: Full Wipe & Reset */}
         <Card style={[styles.card, { borderColor: colors.error, borderWidth: 1.5, marginBottom: spacing.xl }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="warning-outline"
               size={22}
               color={colors.error}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.error, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'منطقة الخطر: إعادة ضبط المصنع' : 'Danger Zone: Factory Reset'}

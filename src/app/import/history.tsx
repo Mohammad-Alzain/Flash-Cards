@@ -69,7 +69,7 @@ export default function ImportHistoryScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {history.length === 0 ? (
           <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>
-            No past imports found.
+            {rtl ? 'لا يوجد سجل استيراد سابق.' : 'No past imports found.'}
           </Text>
         ) : (
           history.map((item) => (
@@ -119,11 +119,11 @@ export default function ImportHistoryScreen() {
                 ]}
               >
                 <Text style={{ color: colors.primary, fontSize: 13, fontWeight: 'bold' }}>
-                  +{item.notes_added} added
+                  +{item.notes_added} {rtl ? 'مضافة' : 'added'}
                 </Text>
                 {item.notes_skipped > 0 && (
                   <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-                    ({item.notes_skipped} skipped)
+                    ({item.notes_skipped} {rtl ? 'تم تخطيها' : 'skipped'})
                   </Text>
                 )}
 

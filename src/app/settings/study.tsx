@@ -96,12 +96,11 @@ export default function StudySettingsScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {/* Algorithm Card */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="calculator-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'خوارزمية التكرار المتباعد' : 'Spaced Repetition Algorithm'}
@@ -130,12 +129,11 @@ export default function StudySettingsScreen() {
 
         {/* Daily Limits Card */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="speedometer-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'الحدود اليومية' : 'Daily Study Limits'}
@@ -170,12 +168,11 @@ export default function StudySettingsScreen() {
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
           <View style={[styles.rowBetween, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <View style={{ flex: 1, paddingRight: rtl ? 0 : 12, paddingLeft: rtl ? 12 : 0 }}>
-              <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
                 <Ionicons
                   name="volume-high-outline"
                   size={22}
                   color={colors.primary}
-                  style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
                 />
                 <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                   {rtl ? 'تشغيل الصوت تلقائياً' : 'Auto-play Audio'}
@@ -198,12 +195,11 @@ export default function StudySettingsScreen() {
 
         {/* Study Without Opening App Card */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="notifications-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'الدراسة بدون فتح التطبيق' : 'Study Without Opening the App'}

@@ -88,7 +88,7 @@ export default function TemplateGalleryScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <Header
         title={t('note_types.gallery_button')}
-        subtitle="Bundled offline presets (Section 8A.6)"
+        subtitle={rtl ? 'قوالب جاهزة مدمجة' : 'Bundled offline presets'}
         onBack={() => router.back()}
       />
 
@@ -132,13 +132,13 @@ export default function TemplateGalleryScreen() {
 
             <View style={[styles.tagsRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginTop: spacing.sm }]}>
               <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-                Fields: {preset.fields.map((f) => f.name).join(', ')}
+                {rtl ? 'الحقول:' : 'Fields:'} {preset.fields.map((f) => f.name).join(', ')}
               </Text>
             </View>
 
-            <View style={[styles.btnRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginTop: spacing.md }]}>
+            <View style={[styles.btnRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8, marginTop: spacing.md }]}>
               <Button
-                title="Preview"
+                title={rtl ? 'معاينة' : 'Preview'}
                 icon={<Ionicons name="eye-outline" size={16} color={colors.primary} />}
                 variant="ghost"
                 size="sm"
@@ -146,10 +146,10 @@ export default function TemplateGalleryScreen() {
                   setSelectedPreset(preset);
                   setPreviewSide('front');
                 }}
-                style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
+                style={{ flex: 1 }}
               />
               <Button
-                title="Use Preset"
+                title={rtl ? 'استخدام القالب' : 'Use Preset'}
                 variant="primary"
                 size="sm"
                 loading={installing}
@@ -171,12 +171,12 @@ export default function TemplateGalleryScreen() {
       >
         <SafeAreaView style={[styles.modalSafe, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
           <Header
-            title={selectedPreset?.name || 'Preview'}
+            title={selectedPreset?.name || (rtl ? 'معاينة' : 'Preview')}
             subtitle={previewSide.toUpperCase()}
             onBack={() => setSelectedPreset(null)}
             rightElement={
               <Button
-                title={previewSide === 'front' ? 'Show Back' : 'Show Front'}
+                title={previewSide === 'front' ? (rtl ? 'إظهار الخلف' : 'Show Back') : (rtl ? 'إظهار الأمام' : 'Show Front')}
                 variant="ghost"
                 size="sm"
                 onPress={() => setPreviewSide(previewSide === 'front' ? 'back' : 'front')}
@@ -197,7 +197,7 @@ export default function TemplateGalleryScreen() {
           {selectedPreset && (
             <View style={{ padding: 16 }}>
               <Button
-                title={`Apply "${selectedPreset.name}"`}
+                title={rtl ? `تطبيق "${selectedPreset.name}"` : `Apply "${selectedPreset.name}"`}
                 variant="primary"
                 size="lg"
                 onPress={() => {

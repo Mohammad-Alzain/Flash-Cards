@@ -10,6 +10,7 @@ import {
   StyleProp,
 } from 'react-native';
 import { useTheme } from '../../theme';
+import { isRTL } from '../../i18n';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'danger' | 'ghost' | 'gold';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -42,6 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
 }) => {
   const { colors, typography, radius, spacing } = useTheme();
+  const rtl = isRTL();
 
   // Determine colors based on variant
   let bgColor = colors.primary;
@@ -115,8 +117,13 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator color={textColor} size="small" />
       ) : (
-        <View style={styles.contentRow}>
-          {icon && iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}
+        <View
+          style={[
+            styles.contentRow,
+            { flexDirection: rtl ? 'row-reverse' : 'row' },
+          ]}
+        >
+          {icon && iconPosition === 'left' && <View style={styles.iconContainer}>{icon}</View>}
           {!!title && (
             <Text
               style={[
@@ -133,7 +140,7 @@ export const Button: React.FC<ButtonProps> = ({
               {title}
             </Text>
           )}
-          {icon && iconPosition === 'right' && <View style={styles.iconRight}>{icon}</View>}
+          {icon && iconPosition === 'right' && <View style={styles.iconContainer}>{icon}</View>}
         </View>
       )}
     </Pressable>
@@ -149,17 +156,15 @@ const styles = StyleSheet.create({
     borderRightWidth: 0,
   },
   contentRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
   },
   baseText: {
     textAlign: 'center',
   },
-  iconLeft: {
-    marginRight: 8,
-  },
-  iconRight: {
-    marginLeft: 8,
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

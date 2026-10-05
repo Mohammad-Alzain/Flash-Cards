@@ -17,12 +17,15 @@ import { useTheme } from '../../theme';
 import { isRTL } from '../../i18n';
 import { Header, Card, Button, Badge, TextField, Chip } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import { EmptySearchIllustration } from '../../components/brand';
 import { NoteEditorModal } from '../../components/card/NoteEditorModal';
+import { BulkRescheduleModal } from '../../components/browser/BulkRescheduleModal';
 import {
   browserRepository,
   BrowserCardItem,
   BrowserSortColumn,
   BrowserSortOrder,
+  BulkRescheduleResult,
 } from '../../core/db/repositories/browserRepository';
 
 const PAGE_SIZE = 50;
@@ -137,7 +140,7 @@ const BrowserCardRow = React.memo<BrowserCardRowProps>(
             </View>
           </View>
 
-          <View style={[styles.badgeCol, { alignItems: 'flex-end' }]}>
+          <View style={[styles.badgeCol, { alignItems: rtl ? 'flex-start' : 'flex-end' }]}>
             {item.suspended === 1 ? (
               <Badge count="Suspended" variant="warning" size="sm" />
             ) : item.state === 0 ? (
@@ -213,6 +216,9 @@ export default function CardBrowserScreen() {
   const [tagModalVisible, setTagModalVisible] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [tagLoading, setTagLoading] = useState(false);
+
+  // Bulk Reschedule Modal
+  const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
 
   // Load cards (first page or reload)
   const loadCards = useCallback(
@@ -408,6 +414,19 @@ export default function CardBrowserScreen() {
     }
   };
 
+  // Bulk Reschedule Success Handler
+  const handleRescheduleSuccess = (result: BulkRescheduleResult) => {
+    CustomAlert.alert(
+      t('common.done'),
+      rtl
+        ? `تم بنجاح تعديل وتحديث مواعيد إعادة ${result.updatedCount} بطاقة مدروسة!`
+        : `Successfully updated review schedules for ${result.updatedCount} cards!`
+    );
+    setSelectedIds(new Set());
+    setIsMultiSelect(false);
+    loadCards(searchQuery, sortColumn, sortOrder);
+  };
+
   // Sorting Selection
   const handleSelectSort = (col: BrowserSortColumn, ord: BrowserSortOrder) => {
     setSortColumn(col);
@@ -484,14 +503,13 @@ export default function CardBrowserScreen() {
         title={rtl ? 'متصفح البطاقات' : 'Card Browser'}
         onBack={() => router.back()}
         rightElement={
-          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
             <Button
               title={rtl ? 'ترتيب' : 'Sort'}
               icon={<Ionicons name="swap-vertical-outline" size={15} color={colors.primary} />}
               variant="ghost"
               size="sm"
               onPress={() => setSortModalVisible(true)}
-              style={{ marginRight: rtl ? 0 : 4, marginLeft: rtl ? 4 : 0 }}
             />
             <Button
               title={rtl ? 'الأدوات' : 'Tools'}
@@ -499,7 +517,6 @@ export default function CardBrowserScreen() {
               variant="ghost"
               size="sm"
               onPress={() => router.push('/tools')}
-              style={{ marginRight: rtl ? 0 : 4, marginLeft: rtl ? 4 : 0 }}
             />
             <Button
               title={isMultiSelect ? (rtl ? 'تم' : 'Done') : (rtl ? 'تحديد' : 'Select')}
@@ -653,9 +670,29 @@ export default function CardBrowserScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: isMultiSelect ? 160 : 60 }}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="albums-outline" size={48} color={colors.textMuted} />
-              <Text style={{ color: colors.textSecondary, marginTop: 8, fontSize: 14 }}>
+              <EmptySearchIllustration size={130} />
+              <Text
+                style={{
+                  color: colors.text,
+                  marginTop: 12,
+                  fontSize: 16,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                }}
+              >
                 {rtl ? 'لا توجد بطاقات مطابقة' : 'No matching cards found'}
+              </Text>
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  marginTop: 4,
+                  fontSize: 13,
+                  textAlign: 'center',
+                }}
+              >
+                {rtl
+                  ? 'جرب البحث بكلمات أخرى أو تغيير الفلاتر الحالية'
+                  : 'Try searching with different terms or adjust filters'}
               </Text>
             </View>
           }
@@ -766,6 +803,27 @@ export default function CardBrowserScreen() {
               </View>
               <Text style={[styles.bulkToolLabel, { color: colors.text }]}>
                 {rtl ? 'مدروسة' : 'Studied'}
+              </Text>
+            </Pressable>
+
+            {/* 3. Bulk Reschedule Review Dates */}
+            <Pressable
+              onPress={() => setRescheduleModalVisible(true)}
+              style={({ pressed }) => [
+                styles.bulkToolItem,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <View
+                style={[
+                  styles.bulkToolIconBox,
+                  { backgroundColor: `${colors.primary}18` },
+                ]}
+              >
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.bulkToolLabel, { color: colors.text }]}>
+                {rtl ? 'تعديل المواعيد' : 'Reschedule'}
               </Text>
             </Pressable>
 
@@ -1068,6 +1126,14 @@ export default function CardBrowserScreen() {
         onSaved={() => {
           loadCards(searchQuery, sortColumn, sortOrder);
         }}
+      />
+
+      {/* Bulk Reschedule Modal */}
+      <BulkRescheduleModal
+        visible={rescheduleModalVisible}
+        selectedCardIds={Array.from(selectedIds)}
+        onClose={() => setRescheduleModalVisible(false)}
+        onSuccess={handleRescheduleSuccess}
       />
     </SafeAreaView>
   );

@@ -35,12 +35,11 @@ export default function AppearanceSettingsScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
         {/* Theme Mode Section */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="moon-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'وضع العرض (النهار / الليل)' : 'Display Mode'}
@@ -72,12 +71,11 @@ export default function AppearanceSettingsScreen() {
 
         {/* Color Palette / Theme Styles Section */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="color-palette-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {rtl ? 'لوحة ألوان التطبيق' : 'App Color Palette'}
@@ -158,12 +156,11 @@ export default function AppearanceSettingsScreen() {
 
         {/* Language Section */}
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
-          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.cardHeader, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
             <Ionicons
               name="language-outline"
               size={22}
               color={colors.primary}
-              style={{ marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}
             />
             <Text style={[styles.cardTitle, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {t('settings.language')}

@@ -2,9 +2,28 @@ import { getDatabase } from '../connection';
 import { searchParser } from '../../search/searchParser';
 import { Card, CardState } from '../../types/models';
 import { stripHtml } from '../../render/templateEngine';
+import { deckRepository } from './deckRepository';
 
 export type BrowserSortColumn = 'created_at' | 'due' | 'sort_field' | 'ease_factor' | 'interval_days' | 'lapses' | 'reps';
 export type BrowserSortOrder = 'ASC' | 'DESC';
+
+export type BulkRescheduleMode = 'shift' | 'specific_date' | 'distribute' | 'multiplier';
+
+export interface BulkRescheduleOptions {
+  mode: BulkRescheduleMode;
+  shiftDays?: number; // e.g. +3, -2
+  updateIntervalsWithShift?: boolean;
+  targetDaysFromNow?: number; // e.g. 0 = today, 1 = tomorrow, 7 = 1 week
+  spreadOverDays?: number; // e.g. 7
+  startFromDays?: number; // e.g. 0 or 1
+  multiplier?: number; // e.g. 1.5, 0.8
+}
+
+export interface BulkRescheduleResult {
+  updatedCount: number;
+  minNewDue: number;
+  maxNewDue: number;
+}
 
 export interface BrowserCardItem {
   id: string;
@@ -455,5 +474,151 @@ export const browserRepository = {
   async vacuumDatabase(): Promise<void> {
     const db = await getDatabase();
     await db.execAsync('VACUUM;');
+  },
+
+  /**
+   * Bulk reschedule studied cards with expert algorithms:
+   * 1. Shift: advance or postpone by N days
+   * 2. Specific Date: set due in X days from today
+   * 3. Distribute: evenly spread backlog cards across D days
+   * 4. Multiplier: scale interval durations
+   */
+  async bulkRescheduleCards(
+    cardIds: string[],
+    options: BulkRescheduleOptions
+  ): Promise<BulkRescheduleResult> {
+    if (!cardIds || cardIds.length === 0) {
+      return { updatedCount: 0, minNewDue: 0, maxNewDue: 0 };
+    }
+
+    const db = await getDatabase();
+    const now = Date.now();
+    const placeholders = cardIds.map(() => '?').join(',');
+
+    // Fetch existing card info
+    const existingCards = await db.getAllAsync<{
+      id: string;
+      state: number;
+      due: number;
+      interval_days: number;
+      reps: number;
+      last_review: number | null;
+    }>(
+      `SELECT id, state, due, interval_days, reps, last_review
+       FROM cards
+       WHERE id IN (${placeholders})
+       ORDER BY due ASC, id ASC;`,
+      ...cardIds
+    );
+
+    if (existingCards.length === 0) {
+      return { updatedCount: 0, minNewDue: 0, maxNewDue: 0 };
+    }
+
+    const updates: { id: string; newDue: number; newInterval: number; newState: number }[] = [];
+    const N = existingCards.length;
+
+    for (let i = 0; i < N; i++) {
+      const card = existingCards[i];
+      let newDue = card.due;
+      let newInterval = card.interval_days;
+      let newState = card.state === 0 ? 2 : card.state;
+
+      switch (options.mode) {
+        case 'shift': {
+          const shiftDays = options.shiftDays || 0;
+          const shiftMs = shiftDays * 86_400_000;
+          newDue = Math.max(now, card.due + shiftMs);
+          if (options.updateIntervalsWithShift) {
+            newInterval = Math.max(1, card.interval_days + shiftDays);
+          }
+          break;
+        }
+
+        case 'specific_date': {
+          const targetDays = Math.max(0, options.targetDaysFromNow ?? 0);
+          newDue = now + targetDays * 86_400_000;
+          newInterval = Math.max(1, targetDays);
+          newState = 2; // Scheduled review
+          break;
+        }
+
+        case 'distribute': {
+          const spreadDays = Math.max(1, options.spreadOverDays || 7);
+          const startOffsetDays = options.startFromDays ?? 1;
+          const daySlot = Math.floor((i / N) * spreadDays);
+          // Add deterministic small fuzz based on index to spread across study day hours
+          const fuzzMs = (i % 12) * 1800_000; // 30-min increments
+          newDue = now + (startOffsetDays + daySlot) * 86_400_000 + fuzzMs;
+          newInterval = Math.max(1, startOffsetDays + daySlot);
+          newState = 2;
+          break;
+        }
+
+        case 'multiplier': {
+          const mult = Math.max(0.1, options.multiplier || 1.0);
+          newInterval = Math.max(1, Math.round(card.interval_days * mult));
+          const baseTime = card.last_review || now;
+          newDue = Math.max(now, baseTime + newInterval * 86_400_000);
+          newState = 2;
+          break;
+        }
+      }
+
+      updates.push({
+        id: card.id,
+        newDue,
+        newInterval,
+        newState,
+      });
+    }
+
+    let minNewDue = Infinity;
+    let maxNewDue = -Infinity;
+
+    await db.withTransactionAsync(async () => {
+      const updatedAt = Date.now();
+      for (const u of updates) {
+        if (u.newDue < minNewDue) minNewDue = u.newDue;
+        if (u.newDue > maxNewDue) maxNewDue = u.newDue;
+
+        await db.runAsync(
+          `UPDATE cards 
+           SET due = ?, interval_days = ?, state = ?, updated_at = ? 
+           WHERE id = ?;`,
+          u.newDue,
+          u.newInterval,
+          u.newState,
+          updatedAt,
+          u.id
+        );
+      }
+    });
+
+    return {
+      updatedCount: updates.length,
+      minNewDue: minNewDue === Infinity ? now : minNewDue,
+      maxNewDue: maxNewDue === -Infinity ? now : maxNewDue,
+    };
+  },
+
+  /**
+   * Retrieves all studied card IDs in a deck (and its sub-decks)
+   */
+  async getStudiedCardIdsInDeck(deckId: string): Promise<string[]> {
+    const db = await getDatabase();
+    const allDeckIds = await deckRepository.getDeckAndDescendantIds(deckId);
+    const placeholders = allDeckIds.map(() => '?').join(',');
+
+    const rows = await db.getAllAsync<{ id: string }>(
+      `SELECT id FROM cards 
+       WHERE suspended = 0 
+         AND (state != 0 OR reps > 0)
+         AND deck_id IN (${placeholders})
+       ORDER BY due ASC;`,
+      ...allDeckIds
+    );
+
+    return rows.map((r) => r.id);
   },
 };

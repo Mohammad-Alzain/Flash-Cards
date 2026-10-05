@@ -204,7 +204,11 @@ export default function AddNoteModal() {
           >
             {t('add_note.deck')} ({selectedDeck?.name || ''})
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
             {decks.map((deck) => (
               <Pressable
                 key={deck.id}
@@ -248,7 +252,11 @@ export default function AddNoteModal() {
             >
               {rtl ? 'نوع البطاقة (القالب):' : 'Note Type (Template):'} {selectedNoteType?.name || ''}
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8 }}
+            >
               {noteTypes.map((nt) => (
                 <Pressable
                   key={nt.id}
@@ -357,6 +365,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1.5,
-    marginRight: 8,
   },
 });

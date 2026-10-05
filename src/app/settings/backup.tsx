@@ -16,15 +16,20 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { BackupService, BackupInfo } from '../../core/backup/backupService';
+import { BackupService, BackupInfo, BackupProgress } from '../../core/backup/backupService';
+import { isRTL } from '../../i18n';
+import { VaultBackupIllustration } from '../../components/brand';
+import { BackupProgressModal } from '../../components/backup/BackupProgressModal';
 
 export default function BackupScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useTheme();
+  const rtl = isRTL();
 
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [backupProgress, setBackupProgress] = useState<BackupProgress | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [backups, setBackups] = useState<BackupInfo[]>([]);
 
@@ -47,19 +52,25 @@ export default function BackupScreen() {
   const handleCreateBackup = async () => {
     try {
       setCreating(true);
-      const res = await BackupService.createBackup();
-      CustomAlert.alert(
-        t('backup.createSuccessTitle'),
-        t('backup.createSuccessDesc', {
-          count: res.metadata?.cardCount || 0,
-          media: res.metadata?.mediaCount || 0,
-        })
-      );
+      setBackupProgress({
+        percent: 0,
+        stage: 'preparing',
+        message: rtl ? 'جاري تهيئة بيئة النسخ الاحتياطي...' : 'Preparing backup environment...',
+      });
+
+      const res = await BackupService.createBackup((prog) => {
+        setBackupProgress(prog);
+      });
+
+      // Brief artistic completion pause so user sees the 100% victory ring
+      await new Promise((r) => setTimeout(r, 850));
+
       await loadBackups();
     } catch (e: any) {
       CustomAlert.alert(t('common.error'), e.message || 'Failed to create backup');
     } finally {
       setCreating(false);
+      setBackupProgress(null);
     }
   };
 
@@ -156,13 +167,19 @@ export default function BackupScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Info Card */}
         <Card style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Ionicons name="shield-checkmark" size={28} color={theme.colors.primary} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.infoTitle, { color: theme.colors.text }]}>
+          <View style={[styles.infoRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <VaultBackupIllustration size={58} />
+            <View
+              style={{
+                flex: 1,
+                marginHorizontal: 12,
+                alignItems: rtl ? 'flex-end' : 'flex-start',
+              }}
+            >
+              <Text style={[styles.infoTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('backup.infoTitle')}
               </Text>
-              <Text style={[styles.infoSubtitle, { color: theme.colors.textMuted }]}>
+              <Text style={[styles.infoSubtitle, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('backup.infoDesc')}
               </Text>
             </View>
@@ -170,7 +187,7 @@ export default function BackupScreen() {
         </Card>
 
         {/* Action Buttons */}
-        <View style={styles.actionsRow}>
+        <View style={[styles.actionsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
           <Button
             title={creating ? t('backup.creating') : t('backup.createNow')}
             variant="primary"
@@ -189,7 +206,7 @@ export default function BackupScreen() {
 
         {/* Existing Backups List */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
             {t('backup.savedBackups')} ({backups.length})
           </Text>
         </View>
@@ -206,12 +223,12 @@ export default function BackupScreen() {
         ) : (
           backups.map(item => (
             <Card key={item.fileName} style={styles.backupCard}>
-              <View style={styles.backupHeader}>
+              <View style={[styles.backupHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.backupName, { color: theme.colors.text }]} numberOfLines={1}>
+                  <Text style={[styles.backupName, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]} numberOfLines={1}>
                     {item.fileName}
                   </Text>
-                  <Text style={[styles.backupMeta, { color: theme.colors.textMuted }]}>
+                  <Text style={[styles.backupMeta, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
                     {formatDate(item.createdAt)} • {formatBytes(item.sizeBytes)}
                   </Text>
                 </View>
@@ -219,9 +236,9 @@ export default function BackupScreen() {
 
               <View style={[styles.cardDivider, { backgroundColor: theme.colors.border }]} />
 
-              <View style={styles.cardActions}>
+              <View style={[styles.cardActions, { flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: rtl ? 'flex-start' : 'flex-end' }]}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: theme.colors.border }]}
+                  style={[styles.actionBtn, { borderColor: theme.colors.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
                   onPress={() => handleShare(item)}
                   activeOpacity={0.7}
                 >
@@ -232,7 +249,7 @@ export default function BackupScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + '15' }]}
+                  style={[styles.actionBtn, { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + '15', flexDirection: rtl ? 'row-reverse' : 'row' }]}
                   onPress={() => handleRestore(item)}
                   activeOpacity={0.7}
                   disabled={restoring}
@@ -244,7 +261,7 @@ export default function BackupScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: theme.colors.error }]}
+                  style={[styles.actionBtn, { borderColor: theme.colors.error, flexDirection: rtl ? 'row-reverse' : 'row' }]}
                   onPress={() => handleDelete(item)}
                   activeOpacity={0.7}
                 >
@@ -258,6 +275,9 @@ export default function BackupScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Artistic Backup Progress Modal */}
+      <BackupProgressModal visible={creating} progress={backupProgress} />
 
       {/* Restoring modal indicator */}
       {restoring && (

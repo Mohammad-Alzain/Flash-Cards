@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240" width="800" height="240">
+  <defs>
+    <linearGradient id="ltrCardBack" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3730A3"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="ltrCardFront" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="ltrSpark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <filter id="ltrShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Mark (Scaled to 180x180 at x=30, y=30) -->
+  <g transform="translate(30, 30) scale(0.3515)">
+    <rect x="116" y="80" width="280" height="352" rx="44" transform="rotate(-10 256 256)" fill="url(#ltrCardBack)" opacity="0.92" />
+    <rect x="116" y="80" width="280" height="352" rx="44" fill="url(#ltrCardFront)" filter="url(#ltrShadow)" stroke="#818CF8" stroke-width="3" stroke-opacity="0.5"/>
+    <path d="M 256 168 Q 256 256 168 256 Q 256 256 256 344 Q 256 256 344 256 Q 256 256 256 168 Z" fill="url(#ltrSpark)"/>
+    <circle cx="340" cy="180" r="14" fill="#22D3EE"/>
+    <circle cx="172" cy="332" r="10" fill="#A5F3FC" opacity="0.85"/>
+  </g>
+
+  <!-- Typography LTR -->
+  <g transform="translate(240, 125)">
+    <text font-family="Nunito, system-ui, -apple-system, sans-serif" font-weight="900" font-size="64" letter-spacing="-1">
+      <tspan fill="#4F46E5">Flash</tspan><tspan fill="#06B6D4">Cards</tspan>
+    </text>
+    <text y="42" font-family="Nunito, system-ui, -apple-system, sans-serif" font-weight="700" font-size="16" letter-spacing="4" fill="#64748B">
+      SMART SPACED REPETITION
+    </text>
+  </g>
+</svg>

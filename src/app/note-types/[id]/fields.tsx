@@ -169,8 +169,8 @@ export default function FieldsEditorScreen() {
             {t('note_types.add_field')}
           </Text>
 
-          <View style={[styles.addRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            <View style={{ flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}>
+          <View style={[styles.addRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 8 }]}>
+            <View style={{ flex: 1 }}>
               <TextField
                 value={newFieldName}
                 onChangeText={setNewFieldName}
@@ -215,7 +215,7 @@ export default function FieldsEditorScreen() {
                     },
                   ]}
                 >
-                  Index: {idx + 1}
+                  {rtl ? 'الترتيب:' : 'Index:'} {idx + 1}
                 </Text>
               </View>
 
@@ -251,13 +251,11 @@ export default function FieldsEditorScreen() {
                 },
               ]}
             >
-              <View style={[styles.rtlOption, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.rtlOption, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 6, alignItems: 'center' }]}>
                 <Text
                   style={{
                     color: colors.textSecondary,
                     fontSize: typography.sizes.xs,
-                    marginRight: rtl ? 0 : 6,
-                    marginLeft: rtl ? 6 : 0,
                   }}
                 >
                   {t('note_types.rtl_label')}

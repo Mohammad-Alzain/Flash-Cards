@@ -7,6 +7,7 @@ import { useTheme } from '../../theme';
 import { isRTL } from '../../i18n';
 import { Card, Button, XPCounter } from '../../components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import { SessionCompleteIllustration } from '../../components/brand';
 
 export default function StudyCompleteScreen() {
   const { count = '0', xp = '0', mode = 'review', deckId } = useLocalSearchParams<{
@@ -26,7 +27,7 @@ export default function StudyCompleteScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <View style={[styles.container, { padding: spacing.xl }]}>
-        <Ionicons name="trophy" size={72} color={colors.gold} style={{ alignSelf: 'center', marginBottom: 16 }} />
+        <SessionCompleteIllustration size={140} style={{ alignSelf: 'center', marginBottom: 12 }} />
 
         <Text
           style={[
@@ -60,8 +61,8 @@ export default function StudyCompleteScreen() {
         </Text>
 
         {/* Stats Grid */}
-        <View style={[styles.gridRow, { flexDirection: rtl ? 'row-reverse' : 'row', marginBottom: spacing.lg }]}>
-          <Card style={[styles.statBox, { flex: 1, marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }]}>
+        <View style={[styles.gridRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 12, marginBottom: spacing.lg }]}>
+          <Card style={[styles.statBox, { flex: 1 }]}>
             <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
               {mode === 'learn'
                 ? (rtl ? 'كلمات تمت دراستها' : 'Cards Learned')

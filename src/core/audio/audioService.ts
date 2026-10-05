@@ -18,7 +18,8 @@ class AudioPlaybackService {
       if (ExpoAudio && typeof ExpoAudio.setAudioModeAsync === 'function') {
         await ExpoAudio.setAudioModeAsync({
           playsInSilentMode: true,
-          interruptionMode: 'duckOthers',
+          shouldPlayInBackground: true,
+          interruptionMode: 'doNotMix',
         });
       }
       this.isAudioModeConfigured = true;

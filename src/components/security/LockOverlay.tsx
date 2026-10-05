@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppLockManager } from '../../core/security/appLock';
+import { Logo } from '../brand/Logo';
 
 interface LockOverlayProps {
   visible: boolean;
@@ -92,9 +93,7 @@ export const LockOverlay: React.FC<LockOverlayProps> = ({ visible, onUnlocked })
     <Modal visible={visible} animationType="fade" transparent={false}>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.header}>
-          <View style={[styles.lockIconCircle, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Ionicons name="lock-closed" size={36} color={theme.colors.primary} />
-          </View>
+          <Logo variant="mark" size={64} style={{ marginBottom: 16 }} />
           <Text style={[styles.title, { color: theme.colors.text }]}>
             {t('security.appLocked')}
           </Text>

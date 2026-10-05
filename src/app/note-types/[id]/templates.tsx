@@ -161,13 +161,12 @@ export default function TemplatesEditorScreen() {
         subtitle={noteType.name}
         onBack={() => router.back()}
         rightElement={
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
             <Button
               icon={<Ionicons name="time-outline" size={18} color={colors.primary} />}
               variant="ghost"
               size="sm"
               onPress={handleOpenVersions}
-              style={{ marginRight: 6 }}
             />
             <Button
               title={t('common.save')}
@@ -182,7 +181,7 @@ export default function TemplatesEditorScreen() {
 
       {/* Templates Selector (if multiple) */}
       {templates.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tplSelectorBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tplSelectorBar} contentContainerStyle={{ gap: 6 }}>
           {templates.map((tpl, i) => (
             <Chip
               key={tpl.id || i}
@@ -195,7 +194,7 @@ export default function TemplatesEditorScreen() {
       )}
 
       {/* Tabs: Front | Back | Styling (CSS) */}
-      <View style={[styles.tabsRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.tabsRow, { backgroundColor: colors.surface, borderBottomColor: colors.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
         <Pressable
           onPress={() => setActiveTab('front')}
           style={[
@@ -301,7 +300,7 @@ export default function TemplatesEditorScreen() {
 
       {/* Bottom Field Insertion Toolbar */}
       <View style={[styles.bottomToolbar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        <View style={styles.insertHeaderRow}>
+        <View style={[styles.insertHeaderRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
           <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: 'bold' }}>
             {t('note_types.insert_field')}:
           </Text>
@@ -314,7 +313,7 @@ export default function TemplatesEditorScreen() {
           />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={{ gap: 6 }}>
           {fields.map((f) => (
             <Chip
               key={f.id}
@@ -343,13 +342,12 @@ export default function TemplatesEditorScreen() {
             subtitle={`${activeTemplate.name} (${previewSide.toUpperCase()})`}
             onBack={() => setPreviewVisible(false)}
             rightElement={
-              <View style={{ flexDirection: 'row' }}>
+              <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
                 <Button
-                  title={previewSide === 'front' ? 'Show Back' : 'Show Front'}
+                  title={previewSide === 'front' ? (rtl ? 'إظهار الظهر' : 'Show Back') : (rtl ? 'إظهار الوجه' : 'Show Front')}
                   variant="ghost"
                   size="sm"
                   onPress={() => setPreviewSide(previewSide === 'front' ? 'back' : 'front')}
-                  style={{ marginRight: 6 }}
                 />
                 <Button
                   icon={<Ionicons name={previewNightMode ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.text} />}
@@ -381,21 +379,23 @@ export default function TemplatesEditorScreen() {
       >
         <View style={styles.versionsBackdrop}>
           <Card style={[styles.versionsCard, { backgroundColor: colors.surfaceRaised }]}>
-            <Text style={[styles.versionsHeading, { color: colors.text }]}>
-              Template Versions (Last 10)
+            <Text style={[styles.versionsHeading, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
+              {rtl ? 'النسخ السابقة للقالب (آخر 10)' : 'Template Versions (Last 10)'}
             </Text>
 
             <ScrollView style={{ maxHeight: 300, marginVertical: 12 }}>
               {versions.length === 0 ? (
-                <Text style={{ color: colors.textSecondary }}>No saved snapshots yet.</Text>
+                <Text style={{ color: colors.textSecondary, textAlign: rtl ? 'right' : 'left' }}>
+                  {rtl ? 'لا توجد نسخ محفوظة بعد.' : 'No saved snapshots yet.'}
+                </Text>
               ) : (
                 versions.map((v, i) => (
-                  <View key={v.id} style={[styles.versionItem, { borderBottomColor: colors.border }]}>
+                  <View key={v.id} style={[styles.versionItem, { borderBottomColor: colors.border, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
                     <Text style={{ color: colors.text, fontSize: 13 }}>
-                      Saved: {new Date(v.saved_at).toLocaleString()}
+                      {rtl ? 'حُفظت: ' : 'Saved: '}{new Date(v.saved_at).toLocaleString()}
                     </Text>
                     <Button
-                      title="Restore"
+                      title={rtl ? 'استعادة' : 'Restore'}
                       variant="ghost"
                       size="sm"
                       onPress={() => handleRestoreVersion(v.id)}

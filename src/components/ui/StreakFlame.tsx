@@ -24,6 +24,7 @@ export const StreakFlame: React.FC<StreakFlameProps> = ({ streak, style }) => {
           flexDirection: rtl ? 'row-reverse' : 'row',
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.xs,
+          gap: 6,
         },
         style,
       ]}
@@ -36,8 +37,6 @@ export const StreakFlame: React.FC<StreakFlameProps> = ({ streak, style }) => {
             color: colors.warningPressed,
             fontSize: typography.sizes.sm,
             fontWeight: typography.weights.extrabold,
-            marginRight: rtl ? 5 : 0,
-            marginLeft: rtl ? 0 : 5,
           },
         ]}
       >

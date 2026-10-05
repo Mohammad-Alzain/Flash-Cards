@@ -15,15 +15,17 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
+import { isRTL } from '../../i18n';
 import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { AppLockManager, SecurityConfig, LockType } from '../../core/security/appLock';
+import { AppLockManager, SecurityConfig } from '../../core/security/appLock';
 
 export default function SecurityScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useTheme();
+  const rtl = isRTL();
 
   const [config, setConfig] = useState<SecurityConfig>({
     enabled: false,
@@ -114,13 +116,13 @@ export default function SecurityScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Info Card */}
         <Card style={styles.infoCard}>
-          <View style={styles.infoRow}>
+          <View style={[styles.infoRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <Ionicons name="lock-closed" size={28} color={theme.colors.primary} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.infoTitle, { color: theme.colors.text }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.infoTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('security.offlineSecurityTitle')}
               </Text>
-              <Text style={[styles.infoSubtitle, { color: theme.colors.textMuted }]}>
+              <Text style={[styles.infoSubtitle, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('security.offlineSecurityDesc')}
               </Text>
             </View>
@@ -129,12 +131,12 @@ export default function SecurityScreen() {
 
         {/* Master Switch */}
         <Card style={styles.card}>
-          <View style={styles.switchRow}>
+          <View style={[styles.switchRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+              <Text style={[styles.cardTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('security.enableLock')}
               </Text>
-              <Text style={[styles.cardDesc, { color: theme.colors.textMuted }]}>
+              <Text style={[styles.cardDesc, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
                 {t('security.enableLockDesc')}
               </Text>
             </View>
@@ -149,33 +151,34 @@ export default function SecurityScreen() {
         {config.enabled && (
           <>
             {/* PIN Settings */}
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {t('security.pinSettings')}
             </Text>
             <Card style={styles.card}>
               <TouchableOpacity
-                style={styles.actionRow}
+                style={[styles.actionRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}
                 onPress={() => {
                   setNewPin('');
                   setConfirmPin('');
                   setPinError('');
                   setShowPinModal(true);
                 }}
+                activeOpacity={0.7}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                  <Text style={[styles.cardTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
                     {config.hasPin ? t('security.changePin') : t('security.setPin')}
                   </Text>
-                  <Text style={[styles.cardDesc, { color: theme.colors.textMuted }]}>
+                  <Text style={[styles.cardDesc, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
                     {config.hasPin ? t('security.pinConfigured') : t('security.pinNotSet')}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={20} color={theme.colors.textMuted} />
               </TouchableOpacity>
             </Card>
 
             {/* Inactivity Timeout */}
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text, textAlign: rtl ? 'right' : 'left' }]}>
               {t('security.timeout')}
             </Text>
             <Card style={styles.card}>
@@ -184,13 +187,17 @@ export default function SecurityScreen() {
                 return (
                   <React.Fragment key={opt.value}>
                     <TouchableOpacity
-                      style={styles.timeoutRow}
+                      style={[styles.timeoutRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}
                       onPress={() => handleSelectTimeout(opt.value)}
+                      activeOpacity={0.7}
                     >
                       <Text
                         style={[
                           styles.timeoutLabel,
-                          { color: isSelected ? theme.colors.primary : theme.colors.text },
+                          {
+                            color: isSelected ? theme.colors.primary : theme.colors.text,
+                            textAlign: rtl ? 'right' : 'left',
+                          },
                           isSelected && { fontWeight: '700' },
                         ]}
                       >
@@ -212,14 +219,14 @@ export default function SecurityScreen() {
       </ScrollView>
 
       {/* Set PIN Modal */}
-      <Modal visible={showPinModal} animationType="slide" transparent>
+      <Modal visible={showPinModal} animationType="slide" transparent onRequestClose={() => setShowPinModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               {config.hasPin ? t('security.changePin') : t('security.setPin')}
             </Text>
 
-            <Text style={[styles.inputLabel, { color: theme.colors.textMuted }]}>
+            <Text style={[styles.inputLabel, { color: theme.colors.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
               {t('security.enterNewPin')}
             </Text>
             <TextInput
@@ -233,7 +240,7 @@ export default function SecurityScreen() {
               placeholderTextColor={theme.colors.textMuted}
             />
 
-            <Text style={[styles.inputLabel, { color: theme.colors.textMuted, marginTop: 12 }]}>
+            <Text style={[styles.inputLabel, { color: theme.colors.textMuted, marginTop: 12, textAlign: rtl ? 'right' : 'left' }]}>
               {t('security.confirmNewPin')}
             </Text>
             <TextInput
@@ -253,7 +260,7 @@ export default function SecurityScreen() {
               </Text>
             ) : null}
 
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
               <Button
                 title={t('common.cancel')}
                 variant="secondary"
@@ -287,8 +294,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   infoRow: {
-    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
   infoTitle: {
     fontSize: 15,
@@ -309,14 +316,14 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   switchRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   actionRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   cardTitle: {
     fontSize: 15,
@@ -327,7 +334,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   timeoutRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
@@ -377,7 +383,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalActions: {
-    flexDirection: 'row',
     gap: 12,
     marginTop: 20,
   },

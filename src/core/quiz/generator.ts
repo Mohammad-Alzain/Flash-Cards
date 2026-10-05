@@ -440,14 +440,17 @@ export const quizGenerator = {
     const questions: QuizQuestion[] = [];
     const countToGenerate = Math.min(config.questionCount || 10, uniquePool.length);
 
-    // Available question types (type_answer removed per user request)
-    const rawAllowed = (config.allowedTypes || []).filter(
-      (t) => t !== 'matching' && t !== 'type_answer'
-    );
-    const allowedTypes: QuestionType[] =
-      rawAllowed.length > 0
-        ? rawAllowed
-        : ['multiple_choice', 'true_false'];
+    let allowedTypes: QuestionType[] = [];
+    if (config.mode === 'written_ai') {
+      allowedTypes = ['type_answer'];
+    } else if (config.mode === 'mixed') {
+      allowedTypes = ['multiple_choice', 'type_answer'];
+    } else {
+      const rawAllowed = (config.allowedTypes || []).filter(
+        (t) => t !== 'matching'
+      );
+      allowedTypes = rawAllowed.length > 0 ? rawAllowed : ['multiple_choice', 'true_false'];
+    }
 
     // Unbiased shuffle of pool
     const shuffledPool = shuffleArray(uniquePool);
@@ -456,6 +459,18 @@ export const quizGenerator = {
       const item = shuffledPool[i];
       let qType: QuestionType = allowedTypes[i % allowedTypes.length];
       const qId = `q_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`;
+
+      if (qType === 'type_answer') {
+        questions.push({
+          id: qId,
+          cardId: item.cardId,
+          type: 'type_answer',
+          prompt: item.prompt,
+          promptImage: item.promptImage,
+          correctAnswer: item.answer,
+        });
+        continue;
+      }
 
       // Collect distractors for multiple choice or true/false using smart matching
       const smartDistractors = selectSmartDistractors(item.answer, globalAnswers, 3);

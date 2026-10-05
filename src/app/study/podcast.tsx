@@ -17,6 +17,7 @@ import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { queueBuilder } from '../../core/scheduler/queueBuilder';
+import { deckRepository } from '../../core/db/repositories/deckRepository';
 import { usePodcastPlayer } from '../../core/audio/usePodcastPlayer';
 
 export default function PodcastModeScreen() {
@@ -62,6 +63,9 @@ export default function PodcastModeScreen() {
 
       try {
         setLoading(true);
+        if (params.deckId) {
+          deckRepository.setLastStudiedDeckId(params.deckId).catch(() => {});
+        }
         const [reviewCards, learnCards] = await Promise.all([
           queueBuilder.buildReviewQueue(params.deckId),
           queueBuilder.buildLearnQueue(params.deckId),

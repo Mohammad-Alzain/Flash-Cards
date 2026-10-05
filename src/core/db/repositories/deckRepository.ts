@@ -1,5 +1,6 @@
 import { getDatabase, withDatabaseLock, withDatabaseRead } from '../connection';
 import { Deck, CardState } from '../../types/models';
+import { settingsRepository } from './settingsRepository';
 
 export interface DeckWithCounts extends Deck {
   card_count: number;
@@ -309,5 +310,89 @@ export const deckRepository = {
         await db.runAsync(`DELETE FROM decks WHERE id IN (${placeholders});`, ...allIds);
       });
     });
+  },
+
+  /**
+   * Sets the last studied / active deck ID in settings
+   */
+  async setLastStudiedDeckId(deckId: string): Promise<void> {
+    try {
+      if (!deckId) return;
+      await settingsRepository.set('last_studied_deck_id', deckId);
+    } catch (e) {
+      console.warn('Failed to set last studied deck ID:', e);
+    }
+  },
+
+  /**
+   * Retrieves the last studied deck ID, checking:
+   * 1. settings 'last_studied_deck_id' (if deck exists and not archived)
+   * 2. review_logs (most recently reviewed card's deck)
+   * 3. daily_stats (most recent study session's deck)
+   * 4. Most recently updated/created deck with new cards
+   */
+  async getLastStudiedDeckId(): Promise<string | null> {
+    return await withDatabaseRead(async (db) => {
+      // 1. Check settings
+      try {
+        const savedId = await settingsRepository.get('last_studied_deck_id', '');
+        if (savedId) {
+          const deck = await db.getFirstAsync<{ id: string }>(
+            'SELECT id FROM decks WHERE id = ? AND archived = 0;',
+            savedId
+          );
+          if (deck) return deck.id;
+        }
+      } catch (e) {}
+
+      // 2. Check review_logs (most recently studied card's deck)
+      const lastRev = await db.getFirstAsync<{ deck_id: string }>(
+        `SELECT r.deck_id 
+         FROM review_logs r
+         JOIN decks d ON d.id = r.deck_id
+         WHERE d.archived = 0
+         ORDER BY r.reviewed_at DESC 
+         LIMIT 1;`
+      );
+      if (lastRev?.deck_id) return lastRev.deck_id;
+
+      // 3. Check daily_stats
+      const lastStat = await db.getFirstAsync<{ deck_id: string }>(
+        `SELECT s.deck_id 
+         FROM daily_stats s
+         JOIN decks d ON d.id = s.deck_id
+         WHERE d.archived = 0
+         ORDER BY s.date DESC, s.time_ms DESC 
+         LIMIT 1;`
+      );
+      if (lastStat?.deck_id) return lastStat.deck_id;
+
+      // 4. Fallback to deck with new cards
+      const deckWithNew = await db.getFirstAsync<{ id: string }>(
+        `SELECT d.id 
+         FROM decks d
+         JOIN cards c ON c.deck_id = d.id
+         WHERE d.archived = 0 AND c.suspended = 0 AND c.state = 0
+         ORDER BY d.updated_at DESC 
+         LIMIT 1;`
+      );
+      if (deckWithNew?.id) return deckWithNew.id;
+
+      // 5. Fallback to any active deck
+      const anyDeck = await db.getFirstAsync<{ id: string }>(
+        'SELECT id FROM decks WHERE archived = 0 ORDER BY updated_at DESC LIMIT 1;'
+      );
+      return anyDeck?.id || null;
+    });
+  },
+
+  /**
+   * Retrieves full deck details with counts for the last studied deck
+   */
+  async getLastStudiedDeckWithCounts(): Promise<DeckWithCounts | null> {
+    const deckId = await this.getLastStudiedDeckId();
+    if (!deckId) return null;
+    const all = await this.getAllWithCounts();
+    return all.find((d) => d.id === deckId) || null;
   },
 };

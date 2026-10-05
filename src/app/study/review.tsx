@@ -30,6 +30,7 @@ import { NoteEditorModal } from '../../components/card/NoteEditorModal';
 import { AIAssistantModal } from '../../components/card/AIAssistantModal';
 import { audioService } from '../../core/audio/audioService';
 import { settingsRepository } from '../../core/db/repositories/settingsRepository';
+import { deckRepository } from '../../core/db/repositories/deckRepository';
 import { mediaManager } from '../../core/media/mediaManager';
 
 export default function ReviewScreen() {
@@ -65,6 +66,9 @@ export default function ReviewScreen() {
   }, []);
 
   useEffect(() => {
+    if (deckId) {
+      deckRepository.setLastStudiedDeckId(deckId).catch(() => {});
+    }
     const specificIds = cardIds ? cardIds.split(',').filter(Boolean) : undefined;
     const studyMode = (mode as any) || (specificIds ? 'selected' : 'due');
     queueBuilder.buildReviewQueue(deckId, undefined, studyMode, specificIds).then((items) => {

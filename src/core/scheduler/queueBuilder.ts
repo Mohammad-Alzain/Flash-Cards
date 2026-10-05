@@ -193,8 +193,13 @@ export const queueBuilder = {
     `;
     const params: any[] = [now];
 
-    if (deckId) {
-      const allDeckIds = await deckRepository.getDeckAndDescendantIds(deckId);
+    let targetDeckId = deckId;
+    if (!targetDeckId) {
+      targetDeckId = (await deckRepository.getLastStudiedDeckId()) || undefined;
+    }
+
+    if (targetDeckId) {
+      const allDeckIds = await deckRepository.getDeckAndDescendantIds(targetDeckId);
       const placeholders = allDeckIds.map(() => '?').join(',');
       sql += ` AND c.deck_id IN (${placeholders})`;
       params.push(...allDeckIds);
@@ -363,6 +368,9 @@ export const queueBuilder = {
       `UPDATE settings SET value = CAST(CAST(value AS INTEGER) + ? AS TEXT) WHERE key = 'xp_total';`,
       xpPoints
     );
+
+    // 6. Record last studied deck
+    await deckRepository.setLastStudiedDeckId(card.deck_id);
 
     return next;
   },

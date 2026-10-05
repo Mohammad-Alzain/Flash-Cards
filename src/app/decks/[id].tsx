@@ -80,6 +80,7 @@ export default function DeckDetailScreen() {
         setEditReviewsPerDay(String(current.reviews_per_day || 100));
         const studied = await queueBuilder.getStudiedCardsCount(current.id);
         setStudiedCount(studied);
+        deckRepository.setLastStudiedDeckId(current.id).catch(() => {});
       }
     } catch (e) {
       console.error('Failed to load deck:', e);

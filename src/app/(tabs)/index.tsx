@@ -38,6 +38,7 @@ export default function HomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [decks, setDecks] = useState<DeckWithCounts[]>([]);
+  const [lastStudiedDeck, setLastStudiedDeck] = useState<DeckWithCounts | null>(null);
   const [counts, setCounts] = useState({ due: 0, newCards: 0, learn: 0, total: 0 });
   const [todayStats, setTodayStats] = useState<TodayStatsSummary>({
     newDone: 0,
@@ -52,14 +53,16 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [allDecks, cardCounts, stats] = await Promise.all([
+      const [allDecks, cardCounts, stats, lastDeck] = await Promise.all([
         deckRepository.getAllWithCounts(),
         cardRepository.getGlobalCounts(),
         statsRepository.getTodaySummary(),
+        deckRepository.getLastStudiedDeckWithCounts(),
       ]);
       setDecks(allDecks);
       setCounts(cardCounts);
       setTodayStats(stats);
+      setLastStudiedDeck(lastDeck);
     } catch (e) {
       console.error('Failed to load home data:', e);
     }
@@ -382,59 +385,106 @@ export default function HomeScreen() {
             </View>
           </Pressable>
 
-          {/* Learn New */}
-          <Pressable
-            onPress={() => router.push('/study/learn')}
-            disabled={counts.newCards === 0}
-            style={({ pressed }) => [
-              styles.actionBtn,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderWidth: 1.5,
-                borderColor: counts.newCards > 0 ? (colors.newCards ?? '#3B82F6') : colors.border,
-                opacity: pressed ? 0.88 : 1,
-                borderRadius: 16,
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.md,
-                flexDirection: rtl ? 'row-reverse' : 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-              },
-            ]}
-          >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                backgroundColor: `${colors.newCards ?? '#3B82F6'}18`,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="book" size={24} color={colors.newCards ?? '#3B82F6'} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: typography.weights.bold, textAlign: rtl ? 'right' : 'left' }}>
-                {t('home.start_learning')}
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, textAlign: rtl ? 'right' : 'left', marginTop: 2 }}>
-                {t('home.learn_card_subtitle', { count: counts.newCards })}
-              </Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: `${colors.newCards ?? '#3B82F6'}18`,
-                borderRadius: 20,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-              }}
-            >
-              <Text style={{ color: colors.newCards ?? '#3B82F6', fontSize: typography.sizes.sm, fontWeight: typography.weights.bold }}>
-                {counts.newCards}
-              </Text>
-            </View>
-          </Pressable>
+          {/* Learn New (scoped to last studied book / sub-deck) */}
+          {(() => {
+            const targetDeck =
+              lastStudiedDeck ||
+              decks.find((d) => (d.new_count > 0 || (d.total_new_count || 0) > 0)) ||
+              decks[0] ||
+              null;
+
+            const targetNewCount = targetDeck
+              ? (targetDeck.has_subdecks
+                  ? (targetDeck.total_new_count ?? targetDeck.new_count)
+                  : targetDeck.new_count)
+              : counts.newCards;
+
+            const hasNewCards = targetNewCount > 0;
+
+            return (
+              <Pressable
+                onPress={() => {
+                  if (targetDeck) {
+                    router.push(`/study/learn?deckId=${targetDeck.id}`);
+                  } else {
+                    router.push('/study/learn');
+                  }
+                }}
+                disabled={!hasNewCards && counts.newCards === 0}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderWidth: 1.5,
+                    borderColor: hasNewCards ? (colors.newCards ?? '#3B82F6') : colors.border,
+                    opacity: pressed ? 0.88 : 1,
+                    borderRadius: 16,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.md,
+                    flexDirection: rtl ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    gap: spacing.md,
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    backgroundColor: `${colors.newCards ?? '#3B82F6'}18`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="book" size={24} color={colors.newCards ?? '#3B82F6'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      color: colors.text,
+                      fontSize: typography.sizes.md,
+                      fontWeight: typography.weights.bold,
+                      textAlign: rtl ? 'right' : 'left',
+                    }}
+                  >
+                    {t('home.start_learning')}
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      fontSize: typography.sizes.xs,
+                      textAlign: rtl ? 'right' : 'left',
+                      marginTop: 2,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {targetDeck
+                      ? `${targetDeck.name} • ${t('home.learn_card_subtitle', { count: targetNewCount })}`
+                      : t('home.learn_card_subtitle', { count: counts.newCards })}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    backgroundColor: `${colors.newCards ?? '#3B82F6'}18`,
+                    borderRadius: 20,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.newCards ?? '#3B82F6',
+                      fontSize: typography.sizes.sm,
+                      fontWeight: typography.weights.bold,
+                    }}
+                  >
+                    {targetDeck ? targetNewCount : counts.newCards}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })()}
         </View>
 
         {/* ── Recent Decks: horizontal scroll ───────────────────────── */}

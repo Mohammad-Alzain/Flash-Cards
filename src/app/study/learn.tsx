@@ -21,6 +21,7 @@ import { NoteEditorModal } from '../../components/card/NoteEditorModal';
 import { AIAssistantModal } from '../../components/card/AIAssistantModal';
 import { audioService } from '../../core/audio/audioService';
 import { settingsRepository } from '../../core/db/repositories/settingsRepository';
+import { deckRepository } from '../../core/db/repositories/deckRepository';
 import { TtsService } from '../../core/audio/ttsService';
 import { mediaManager } from '../../core/media/mediaManager';
 
@@ -56,12 +57,30 @@ export default function LearnNewScreen() {
     };
   }, []);
 
+  const [activeDeckId, setActiveDeckId] = useState<string | undefined>(deckId);
+
   useEffect(() => {
-    queueBuilder.buildLearnQueue(deckId, 15).then((items) => {
+    let isCancelled = false;
+    const init = async () => {
+      let resolvedDeckId = deckId;
+      if (!resolvedDeckId) {
+        resolvedDeckId = (await deckRepository.getLastStudiedDeckId()) || undefined;
+      }
+      if (isCancelled) return;
+      setActiveDeckId(resolvedDeckId);
+      if (resolvedDeckId) {
+        await deckRepository.setLastStudiedDeckId(resolvedDeckId);
+      }
+      const items = await queueBuilder.buildLearnQueue(resolvedDeckId, 15);
+      if (isCancelled) return;
       setQueue(items);
       setLoading(false);
       startTimeRef.current = Date.now();
-    });
+    };
+    init();
+    return () => {
+      isCancelled = true;
+    };
   }, [deckId]);
 
   const currentCard = queue[currentIndex];
@@ -187,7 +206,7 @@ export default function LearnNewScreen() {
       startTimeRef.current = Date.now();
     } else {
       router.replace(
-        `/study/complete?count=${learnedCount + 1}&xp=${(learnedCount + 1) * 12}&mode=learn&deckId=${deckId || ''}`
+        `/study/complete?count=${learnedCount + 1}&xp=${(learnedCount + 1) * 12}&mode=learn&deckId=${activeDeckId || deckId || ''}`
       );
     }
   };
@@ -340,6 +359,7 @@ export default function LearnNewScreen() {
           />
           <Text style={[styles.stageText, { color: colors.primary }]}>
             {rtl ? 'دراسة وفهم كلمة جديدة' : 'Learning New Card'}
+            {currentCard?.deck_name ? ` • ${currentCard.deck_name}` : ''}
           </Text>
         </View>
       </View>

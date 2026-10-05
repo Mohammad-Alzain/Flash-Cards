@@ -265,7 +265,7 @@ export default function StudySettingsScreen() {
             </View>
 
             <Button
-              title={rtl ? '⚡ معاينة وتجربة بطاقة الفتح السريعة' : 'Preview Quick Unlock Card'}
+              title={rtl ? 'معاينة وتجربة بطاقة الفتح السريعة' : 'Preview Quick Unlock Card'}
               variant="secondary"
               size="sm"
               onPress={() => router.push('/modal/quick-card')}

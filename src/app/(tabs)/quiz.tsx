@@ -36,8 +36,8 @@ export default function QuizScreen() {
   // Question count selection (5, 10, 20, 50, 0 = All cards)
   const [selectedCount, setSelectedCount] = useState<number>(10);
 
-  // Smart training focus (all, mistakes, due, new, hardest)
-  const [selectedSmartFocus, setSelectedSmartFocus] = useState<'all' | 'mistakes' | 'due' | 'new' | 'hardest'>('all');
+  // Smart training focus (all, due, new, hardest)
+  const [selectedSmartFocus, setSelectedSmartFocus] = useState<'all' | 'due' | 'new' | 'hardest'>('all');
 
   // Time limit selection (0 = no limit, 60 = 1m, 120 = 2m, 300 = 5m)
   const [selectedTimeLimit, setSelectedTimeLimit] = useState<number>(0);
@@ -101,14 +101,6 @@ export default function QuizScreen() {
       iconColor: colors.accent,
     },
     {
-      id: 'random',
-      title: t('quiz.random_title'),
-      desc: rtl ? 'اختبار تفاعلي سريع (اختيار من متعدد وصح أو خطأ)' : t('quiz.random_desc'),
-      icon: 'shuffle',
-      variant: 'primary',
-      iconColor: colors.primary,
-    },
-    {
       id: 'exam',
       title: t('quiz.exam_title'),
       desc: rtl ? 'نمط الامتحان المؤقت دون إظهار الإجابات أثناء الاختبار' : t('quiz.exam_desc'),
@@ -121,22 +113,6 @@ export default function QuizScreen() {
       title: t('quiz.survival_title'),
       desc: rtl ? 'نمط البقاء: لديك 3 أرواح وينتهي الاختبار فوراً عند نفاذها' : t('quiz.survival_desc'),
       icon: 'heart',
-      variant: 'danger',
-      iconColor: colors.error,
-    },
-    {
-      id: 'matching',
-      title: t('quiz.match_title'),
-      desc: rtl ? 'لعبة توصيل ومطابقة الكلمات مع معانيها' : t('quiz.match_desc'),
-      icon: 'flash',
-      variant: 'gold',
-      iconColor: colors.goldPressed,
-    },
-    {
-      id: 'mistakes',
-      title: rtl ? 'تصفية الأخطاء السابقة' : 'Mistakes Drill',
-      desc: rtl ? `تدريب مركز ومكثف على ${mistakesCount} كلمة أخطأت بها سابقاً` : 'Targeted drill on past mistakes',
-      icon: 'alert-circle',
       variant: 'danger',
       iconColor: colors.error,
     },
@@ -687,11 +663,10 @@ export default function QuizScreen() {
             }}
           >
             {[
-              { id: 'all', labelAr: '🌟 شامل ومنوع', labelEn: '🌟 All Mix' },
-              { id: 'mistakes', labelAr: '⚡ تصفية الأخطاء', labelEn: '⚡ Mistakes' },
-              { id: 'hardest', labelAr: '🔥 الأصعب حفظاً', labelEn: '🔥 Hardest' },
-              { id: 'due', labelAr: '🕒 مستحقة اليوم', labelEn: '🕒 Due Today' },
-              { id: 'new', labelAr: '🆕 كلمات جديدة', labelEn: '🆕 New Cards' },
+              { id: 'all', labelAr: 'شامل ومنوع', labelEn: 'All Mix' },
+              { id: 'hardest', labelAr: 'الأصعب حفظاً', labelEn: 'Hardest' },
+              { id: 'due', labelAr: 'مستحقة اليوم', labelEn: 'Due Today' },
+              { id: 'new', labelAr: 'كلمات جديدة', labelEn: 'New Cards' },
             ].map((f) => {
               const isSel = selectedSmartFocus === f.id;
               return (
@@ -771,50 +746,7 @@ export default function QuizScreen() {
           </View>
         )}
 
-        {/* ── Mistakes Notebook Card ── */}
-        {mistakesCount > 0 && (
-          <Pressable
-            style={[
-              styles.mistakesCard,
-              {
-                borderColor: '#F59E0B',
-                backgroundColor: `#F59E0B18`,
-                marginBottom: spacing.lg,
-              },
-            ]}
-            onPress={() =>
-              router.push(
-                (`/quiz/play?mode=mistakes${selectedDeckId ? `&deckId=${selectedDeckId}` : ''}`) as any
-              )
-            }
-          >
-            <View style={[styles.mistakesRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-              <View
-                style={[
-                  styles.mistakesIconBox,
-                  {
-                    backgroundColor: '#F59E0B20',
-                    marginRight: rtl ? 0 : 12,
-                    marginLeft: rtl ? 12 : 0,
-                  },
-                ]}
-              >
-                <Ionicons name="book" size={24} color="#F59E0B" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', textAlign: rtl ? 'right' : 'left' }}>
-                  {rtl ? 'دفتر الأخطاء' : 'Mistakes Notebook'}
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: rtl ? 'right' : 'left', marginTop: 2 }}>
-                  {rtl
-                    ? `${mistakesCount} بطاقة تحتاج لمراجعة إضافية`
-                    : `${mistakesCount} challenging cards waiting for review`}
-                </Text>
-              </View>
-              <Badge count={mistakesCount} variant="warning" size="md" />
-            </View>
-          </Pressable>
-        )}
+
 
         {/* ── Modes Section Heading ── */}
         <Text

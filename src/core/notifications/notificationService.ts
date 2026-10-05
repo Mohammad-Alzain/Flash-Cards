@@ -185,7 +185,7 @@ export const notificationService = {
         if (Notifications && typeof Notifications.scheduleNotificationAsync === 'function') {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: `✨ أحسنت! تم تسجيل الإتقان`,
+              title: `أحسنت! تم تسجيل الإتقان`,
               body: `المعنى: ${data.cleanAnswer}`,
               sound: false,
             },

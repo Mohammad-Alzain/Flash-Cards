@@ -1008,10 +1008,10 @@ export default function QuizResultsScreen() {
                 }}
               >
                 <Button
-                  title={rtl ? 'تدريب الأخطاء' : 'Practice Mistakes'}
+                  title={rtl ? 'تصفية الأخطاء' : 'Filter Mistakes'}
                   variant="secondary"
                   size="md"
-                  onPress={() => router.replace('/quiz/play?mode=mistakes')}
+                  onPress={() => setFilter('incorrect')}
                   style={{ flex: 1 }}
                 />
                 <Button

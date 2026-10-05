@@ -227,8 +227,8 @@ export const quizGenerator = {
     if (config.mode === 'mistakes' || config.smartFocus === 'mistakes') {
       sql += ' AND (c.id IN (SELECT card_id FROM mistakes WHERE wrong_count > 0) OR c.lapses > 0)';
     } else if (config.smartFocus === 'due') {
-      const nowSec = Math.floor(Date.now() / 1000);
-      sql += ` AND ((c.state = 2 AND c.due <= ${nowSec}) OR c.state IN (1, 3))`;
+      const nowMs = Date.now();
+      sql += ` AND ((c.state = 2 AND c.due <= ${nowMs}) OR c.state IN (1, 3))`;
     } else if (config.smartFocus === 'new') {
       sql += ' AND c.state = 0';
     } else if (config.smartFocus === 'hardest') {

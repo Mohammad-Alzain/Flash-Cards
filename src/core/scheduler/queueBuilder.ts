@@ -65,6 +65,14 @@ export const queueBuilder = {
       deckParams.push(...allDeckIds);
     }
 
+    let reviewLimit = 100;
+    if (deckId) {
+      const deck = await deckRepository.getById(deckId);
+      if (deck && deck.reviews_per_day) {
+        reviewLimit = deck.reviews_per_day;
+      }
+    }
+
     if (mode === 'selected' && specificCardIds && specificCardIds.length > 0) {
       const placeholders = specificCardIds.map(() => '?').join(',');
       sql += ` AND c.id IN (${placeholders})`;
@@ -81,23 +89,23 @@ export const queueBuilder = {
         params.push(...deckParams);
       }
     } else {
-      // Standard 'due' mode
+      // Standard 'due' mode: strictly cards that have matured for review now
       sql += `
         AND (c.buried_until IS NULL OR c.buried_until <= ?)
         AND (
           (c.state = 2 AND c.due <= ?) OR 
-          c.state = 1 OR 
-          c.state = 3
+          ((c.state = 1 OR c.state = 3) AND (c.due IS NULL OR c.due <= ?))
         )
       `;
-      params.push(now, dayEnd);
+      params.push(now, now, now);
       if (deckFilterClause) {
         sql += deckFilterClause;
         params.push(...deckParams);
       }
     }
 
-    sql += ' ORDER BY c.due ASC, c.template_ord ASC LIMIT 100;';
+    sql += ' ORDER BY c.due ASC, c.template_ord ASC LIMIT ?;';
+    params.push(reviewLimit);
 
     const rows = await db.getAllAsync<any>(sql, ...params);
 

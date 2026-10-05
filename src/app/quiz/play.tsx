@@ -47,7 +47,7 @@ export default function QuizPlayScreen() {
     timeLimitSec?: string;
     smartFocus?: 'all' | 'mistakes' | 'due' | 'new' | 'hardest';
   }>();
-  const rawMode = params.mode || 'random';
+  const rawMode = params.mode || 'written_ai';
   const mode: QuizMode = rawMode === 'match' ? 'matching' : (rawMode as QuizMode);
   const questionCount = parseInt(params.count || '10', 10);
   const deckId = params.deckId;
@@ -1200,7 +1200,7 @@ export default function QuizPlayScreen() {
           <Card style={[styles.gradingModalCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.gradingModalTitle, { color: colors.text }]}>
-              {rtl ? 'جاري تصحيح إجاباتك بالذكاء الاصطناعي ✨' : 'Grading your answers with AI ✨'}
+              {rtl ? 'جاري تصحيح إجاباتك بالذكاء الاصطناعي' : 'Grading your answers with AI'}
             </Text>
             <Text style={[styles.gradingModalSub, { color: colors.textSecondary }]}>
               {gradingStatus || (rtl ? 'جاري التدقيق والمقارنة الأكاديمية...' : 'Evaluating answers accurately...')}

@@ -8,12 +8,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-icon-dark.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F8FAFC",
+      "backgroundColor": "#0B0F19",
       "dark": {
         "image": "./assets/splash-icon-dark.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#0B0F19"
       }
     },
     "ios": {
@@ -69,7 +69,8 @@
           "color": "#4F46E5"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-splash-screen"
     ],
     "scheme": "flashcards",
     "experiments": {

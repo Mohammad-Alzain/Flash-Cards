@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   Modal,
+  ScrollView,
 } from 'react-native';
 import { CustomAlert } from '../../components/common/CustomDialog';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -389,127 +390,155 @@ export default function ReviewScreen() {
         </View>
       </View>
 
-      {/* ── Tier 2: Study Tools Bar (Audio, Auto, Brush, Headset, Edit) ── */}
+      {/* ── Tier 2: Study Tools Bar (Horizontal Scrollable) ── */}
       <View
         style={[
-          styles.studyToolsBar,
+          styles.studyToolsWrapper,
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.border,
-            flexDirection: rtl ? 'row-reverse' : 'row',
           },
         ]}
       >
-        {/* Replay Sound */}
-        <Pressable
-          onPress={handleReplayAudio}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.toolChip,
-            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.studyToolsScrollContent,
+            { flexDirection: rtl ? 'row-reverse' : 'row' },
           ]}
         >
-          <Ionicons name="volume-high-outline" size={16} color={colors.primary} />
-          <Text style={[styles.toolChipText, { color: colors.text }]}>
-            {rtl ? 'صوت' : 'Audio'}
-          </Text>
-        </Pressable>
-
-        {/* Auto-play Audio Toggle */}
-        <Pressable
-          onPress={handleToggleAutoPlay}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.toolChip,
-            {
-              backgroundColor: autoPlayAudio ? `${colors.primary}18` : colors.surfaceRaised,
-              borderColor: autoPlayAudio ? colors.primary : colors.border,
-              opacity: pressed ? 0.7 : 1,
-              flexDirection: rtl ? 'row-reverse' : 'row',
-            },
-          ]}
-        >
-          <Ionicons
-            name={autoPlayAudio ? 'musical-notes' : 'musical-note-outline'}
-            size={16}
-            color={autoPlayAudio ? colors.primary : colors.textSecondary}
-          />
-          <Text
-            style={[
-              styles.toolChipText,
+          {/* Replay Sound */}
+          <Pressable
+            onPress={handleReplayAudio}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.toolChip,
               {
-                color: autoPlayAudio ? colors.primary : colors.textSecondary,
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: rtl ? 'row-reverse' : 'row',
               },
             ]}
           >
-            {rtl ? 'تلقائي' : 'Auto'}
-          </Text>
-        </Pressable>
+            <Ionicons name="volume-high-outline" size={16} color={colors.primary} />
+            <Text style={[styles.toolChipText, { color: colors.text }]}>
+              {rtl ? 'صوت' : 'Audio'}
+            </Text>
+          </Pressable>
 
-        {/* Whiteboard Scratchpad */}
-        <Pressable
-          onPress={() => setWhiteboardVisible(!whiteboardVisible)}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.toolChip,
-            {
-              backgroundColor: whiteboardVisible ? `${colors.primary}22` : colors.surfaceRaised,
-              borderColor: whiteboardVisible ? colors.primary : colors.border,
-              opacity: pressed ? 0.7 : 1,
-              flexDirection: rtl ? 'row-reverse' : 'row',
-            },
-          ]}
-        >
-          <Ionicons name="brush-outline" size={16} color={colors.primary} />
-          <Text style={[styles.toolChipText, { color: colors.text }]}>
-            {rtl ? 'مسودة' : 'Draw'}
-          </Text>
-        </Pressable>
+          {/* Auto-play Audio Toggle */}
+          <Pressable
+            onPress={handleToggleAutoPlay}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.toolChip,
+              {
+                backgroundColor: autoPlayAudio ? `${colors.primary}18` : colors.surfaceRaised,
+                borderColor: autoPlayAudio ? colors.primary : colors.border,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: rtl ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons
+              name={autoPlayAudio ? 'musical-notes' : 'musical-note-outline'}
+              size={16}
+              color={autoPlayAudio ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.toolChipText,
+                {
+                  color: autoPlayAudio ? colors.primary : colors.textSecondary,
+                },
+              ]}
+            >
+              {rtl ? 'تلقائي' : 'Auto'}
+            </Text>
+          </Pressable>
 
-        {/* Podcast Mode */}
-        <Pressable
-          onPress={() => router.push(`/study/podcast?deckId=${deckId || ''}`)}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.toolChip,
-            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
-          ]}
-        >
-          <Ionicons name="headset-outline" size={16} color={colors.accent} />
-          <Text style={[styles.toolChipText, { color: colors.text }]}>
-            {rtl ? 'بودكاست' : 'Podcast'}
-          </Text>
-        </Pressable>
+          {/* Whiteboard Scratchpad */}
+          <Pressable
+            onPress={() => setWhiteboardVisible(!whiteboardVisible)}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.toolChip,
+              {
+                backgroundColor: whiteboardVisible ? `${colors.primary}22` : colors.surfaceRaised,
+                borderColor: whiteboardVisible ? colors.primary : colors.border,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: rtl ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="brush-outline" size={16} color={colors.primary} />
+            <Text style={[styles.toolChipText, { color: colors.text }]}>
+              {rtl ? 'مسودة' : 'Draw'}
+            </Text>
+          </Pressable>
 
-        {/* AI Study Assistant */}
-        <Pressable
-          onPress={() => setAiModalVisible(true)}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.toolChip,
-            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
-          ]}
-        >
-          <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
-          <Text style={[styles.toolChipText, { color: colors.text }]}>
-            {rtl ? 'شرح ذكي' : 'AI Help'}
-          </Text>
-        </Pressable>
+          {/* Podcast Mode */}
+          <Pressable
+            onPress={() => router.push(`/study/podcast?deckId=${deckId || ''}`)}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.toolChip,
+              {
+                backgroundColor: `${colors.accent}14`,
+                borderColor: `${colors.accent}40`,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: rtl ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="headset-outline" size={16} color={colors.accent} />
+            <Text style={[styles.toolChipText, { color: colors.text }]}>
+              {rtl ? 'بودكاست' : 'Podcast'}
+            </Text>
+          </Pressable>
 
-        {/* Edit Note */}
-        <Pressable
-          onPress={() => setEditModalVisible(true)}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.toolChip,
-            { backgroundColor: colors.surfaceRaised, opacity: pressed ? 0.7 : 1, flexDirection: rtl ? 'row-reverse' : 'row' },
-          ]}
-        >
-          <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
-          <Text style={[styles.toolChipText, { color: colors.text }]}>
-            {rtl ? 'تعديل' : 'Edit'}
-          </Text>
-        </Pressable>
+          {/* AI Study Assistant */}
+          <Pressable
+            onPress={() => setAiModalVisible(true)}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.toolChip,
+              {
+                backgroundColor: `${colors.primary}14`,
+                borderColor: `${colors.primary}40`,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: rtl ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
+            <Text style={[styles.toolChipText, { color: colors.text, fontWeight: '700' }]}>
+              {rtl ? 'شرح ذكي' : 'AI Help'}
+            </Text>
+          </Pressable>
+
+          {/* Edit Note */}
+          <Pressable
+            onPress={() => setEditModalVisible(true)}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.toolChip,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: rtl ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
+            <Text style={[styles.toolChipText, { color: colors.text }]}>
+              {rtl ? 'تعديل' : 'Edit'}
+            </Text>
+          </Pressable>
+        </ScrollView>
       </View>
 
       {/* Center 3D Flip Card */}
@@ -774,24 +803,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  studyToolsBar: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+  studyToolsWrapper: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'space-around',
+  },
+  studyToolsScrollContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     alignItems: 'center',
+    gap: 8,
   },
   toolChip: {
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 5,
+    gap: 6,
   },
   toolChipText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   actionIconBtn: {

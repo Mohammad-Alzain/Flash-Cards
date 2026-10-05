@@ -9,6 +9,7 @@ import '../i18n'; // Init i18next
 
 import { AppState, AppStateStatus } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { Ionicons } from '@expo/vector-icons';
 import { AppLockManager } from '../core/security/appLock';
 import { LockOverlay } from '../components/security/LockOverlay';
@@ -17,6 +18,9 @@ import { settingsRepository } from '../core/db/repositories/settingsRepository';
 import { notificationService } from '../core/notifications/notificationService';
 import { Logo } from '../components/brand/Logo';
 
+// Prevent native splash screen from auto hiding before DB initialization
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 function RootApp() {
   const router = useRouter();
   const { colors, isDark, spacing } = useTheme();
@@ -24,6 +28,12 @@ function RootApp() {
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const lastQuickCardTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (dbReady || error) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [dbReady, error]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {

@@ -22,8 +22,8 @@
     </filter>
   </defs>
 
-  <!-- OLED Pure Black Background -->
-  <rect width="1024" height="1024" fill="#000000"/>
+  <!-- Midnight Background matching Android #0B0F19 -->
+  <rect width="1024" height="1024" fill="#0B0F19"/>
   <rect width="1024" height="1024" fill="url(#darkSplashGlow)"/>
 
   <!-- Centered Synapse Spark Mark (y shifted up slightly to balance wordmark) -->

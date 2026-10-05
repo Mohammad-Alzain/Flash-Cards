@@ -113,6 +113,8 @@ export function BulkRescheduleModal({
                 {
                   backgroundColor: active ? colors.primary : colors.surfaceRaised,
                   borderColor: active ? colors.primary : colors.border,
+                  flexDirection: rtl ? 'row-reverse' : 'row',
+                  gap: 8,
                 },
               ]}
               activeOpacity={0.8}
@@ -121,7 +123,6 @@ export function BulkRescheduleModal({
                 name={tab.icon}
                 size={16}
                 color={active ? '#FFFFFF' : colors.textSecondary}
-                style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
               />
               <Text
                 style={[
@@ -218,7 +219,7 @@ export function BulkRescheduleModal({
         {/* Toggle Interval Adjustment */}
         <TouchableOpacity
           onPress={() => setUpdateIntervals(!updateIntervals)}
-          style={[styles.toggleRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}
+          style={[styles.toggleRow, { flexDirection: rtl ? 'row-reverse' : 'row', gap: 10 }]}
           activeOpacity={0.8}
         >
           <View
@@ -227,14 +228,12 @@ export function BulkRescheduleModal({
               {
                 borderColor: updateIntervals ? colors.primary : colors.border,
                 backgroundColor: updateIntervals ? colors.primary : 'transparent',
-                marginRight: rtl ? 0 : 10,
-                marginLeft: rtl ? 10 : 0,
               },
             ]}
           >
             {updateIntervals && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
           </View>
-          <Text style={[styles.toggleLabel, { color: colors.text }]}>
+          <Text style={[styles.toggleLabel, { color: colors.text, textAlign: rtl ? 'right' : 'left' }]}>
             {rtl
               ? 'تحديث فترات التكرار (Interval) بالتناسب مع أيام الإزاحة'
               : 'Adjust interval days proportionally with shift'}
@@ -351,9 +350,9 @@ export function BulkRescheduleModal({
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.infoBanner, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+        <View style={[styles.infoBanner, { backgroundColor: colors.primaryLight, borderColor: colors.primary, flexDirection: rtl ? 'row-reverse' : 'row' }]}>
           <Ionicons name="pie-chart-outline" size={18} color={colors.primary} />
-          <Text style={[styles.infoBannerText, { color: colors.primary }]}>
+          <Text style={[styles.infoBannerText, { color: colors.primary, textAlign: rtl ? 'right' : 'left' }]}>
             {rtl
               ? `المعدل التقديري: ~${perDay} بطاقة لكل يوم على مدى ${spreadDays} أيام.`
               : `Estimated load: ~${perDay} cards per day over ${spreadDays} days.`}
@@ -540,7 +539,14 @@ export function BulkRescheduleModal({
 
             <TouchableOpacity
               onPress={handleApply}
-              style={[styles.applyBtn, { backgroundColor: colors.primary }]}
+              style={[
+                styles.applyBtn,
+                {
+                  backgroundColor: colors.primary,
+                  flexDirection: rtl ? 'row-reverse' : 'row',
+                  gap: 8,
+                },
+              ]}
               disabled={loading || cardCount === 0}
             >
               {loading ? (
@@ -551,7 +557,6 @@ export function BulkRescheduleModal({
                     name="checkmark-circle-outline"
                     size={18}
                     color="#FFFFFF"
-                    style={{ marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}
                   />
                   <Text style={styles.applyBtnText}>
                     {rtl ? `تطبيق على ${cardCount} بطاقة` : `Apply to ${cardCount} cards`}
@@ -616,12 +621,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   tabBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 12,
     borderWidth: 1,
+    gap: 8,
   },
   tabLabel: {
     fontSize: 13,
@@ -728,11 +733,11 @@ const styles = StyleSheet.create({
   },
   applyBtn: {
     flex: 2,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 14,
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,

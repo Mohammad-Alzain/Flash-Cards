@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../theme';
 import { CustomAlert } from '../../components/common/CustomDialog';
-import { Screen, Header, Card, Row, AppText, Button, IconTile, SectionHeader, Badge, EmptyState } from '../../components/ui';
+import { Screen, Header, Card, Row, AppText, Button, IconButton, IconTile, SectionHeader, Badge, EmptyState } from '../../components/ui';
 import { Illustration } from '../../components/illustrations';
 import { BackupService, BackupInfo, BackupProgress } from '../../core/backup/backupService';
 import { BackupProgressModal } from '../../components/backup/BackupProgressModal';
@@ -171,10 +171,30 @@ export default function BackupScreen() {
                 </AppText>
               </View>
             </Row>
-            <Row gap={8} style={{ marginTop: 12 }}>
-              <Button title={t('common.share')} icon="share-social" variant="ghost" size="sm" onPress={() => share(b)} style={{ flex: 1 }} />
-              <Button title={t('backup.restore')} icon="refresh" variant="soft" size="sm" onPress={() => restore(b)} disabled={restoring} style={{ flex: 1 }} />
-              <Button title={t('common.delete')} icon="trash" variant="dangerSoft" size="sm" onPress={() => remove(b)} style={{ flex: 1 }} />
+            <Row gap={8} align="center" style={{ marginTop: 12 }}>
+              <Button
+                title={t('backup.restore')}
+                icon="refresh"
+                variant="soft"
+                size="sm"
+                onPress={() => restore(b)}
+                disabled={restoring}
+                style={{ flex: 1 }}
+              />
+              <IconButton
+                icon="share-social-outline"
+                variant="surface"
+                size={38}
+                onPress={() => share(b)}
+                accessibilityLabel={t('common.share')}
+              />
+              <IconButton
+                icon="trash-outline"
+                variant="danger"
+                size={38}
+                onPress={() => remove(b)}
+                accessibilityLabel={t('common.delete')}
+              />
             </Row>
           </Card>
         ))

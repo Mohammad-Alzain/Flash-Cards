@@ -135,8 +135,10 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator color={gradient ? '#FFFFFF' : colors.primary} size="small" />
       ) : (
-        <Row gap={s.gap} justify="center">
-          {iconPosition === 'left' && iconNode && <View>{iconNode}</View>}
+        <Row gap={s.gap} justify="center" align="center" style={{ maxWidth: '100%', flexShrink: 1 }}>
+          {iconPosition === 'left' && iconNode && (
+            <View style={{ flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>{iconNode}</View>
+          )}
           {!!title && (
             <AppText
               variant="bodyStrong"
@@ -145,12 +147,15 @@ export const Button: React.FC<ButtonProps> = ({
               color={fg}
               align="center"
               numberOfLines={1}
-              style={textStyle}
+              ellipsizeMode="tail"
+              style={[{ flexShrink: 1 }, textStyle]}
             >
               {title}
             </AppText>
           )}
-          {iconPosition === 'right' && iconNode && <View>{iconNode}</View>}
+          {iconPosition === 'right' && iconNode && (
+            <View style={{ flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>{iconNode}</View>
+          )}
         </Row>
       )}
     </PressableScale>

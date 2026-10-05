@@ -11,10 +11,11 @@ interface ChipPickerProps<T> {
   getId: (item: T) => string;
   getLabel: (item: T) => string;
   icon?: IconName;
+  bleed?: boolean;
 }
 
 /** Horizontal single-select chip list (decks, note types…). */
-export function ChipPicker<T>({ items, selectedId, onSelect, getId, getLabel, icon }: ChipPickerProps<T>) {
+export function ChipPicker<T>({ items, selectedId, onSelect, getId, getLabel, icon, bleed = false }: ChipPickerProps<T>) {
   const dir = useDirection();
   return (
     <FlatList
@@ -23,8 +24,8 @@ export function ChipPicker<T>({ items, selectedId, onSelect, getId, getLabel, ic
       data={items}
       keyExtractor={getId}
       showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -16, flexGrow: 0 }}
-      contentContainerStyle={{ paddingHorizontal: 16 }}
+      style={[{ flexGrow: 0 }, bleed ? { marginHorizontal: -16 } : undefined]}
+      contentContainerStyle={bleed ? { paddingHorizontal: 16 } : undefined}
       ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
       renderItem={({ item }) => (
         <Chip label={getLabel(item)} icon={icon} selected={getId(item) === selectedId} onPress={() => onSelect(getId(item))} />

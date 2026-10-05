@@ -128,7 +128,7 @@ export default function QuickCardModal() {
             </View>
           ) : (
             <AppText variant="caption" color="textMuted" align="center" style={{ marginTop: 20 }}>
-              👆 {t('quick_card.tap_hint')}
+              {t('quick_card.tap_hint')}
             </AppText>
           )}
         </PressableScale>

@@ -174,7 +174,7 @@ export default function AISettingsScreen() {
       </Card>
 
       {/* Usage */}
-      <ListGroup title={t('ai_settings.usage_title')} footer={`🔒 ${t('ai_settings.privacy')}`}>
+      <ListGroup title={t('ai_settings.usage_title')} footer={t('ai_settings.privacy')}>
         <ListItem icon="speedometer" tone="indigo" title={t('ai_settings.tokens')} value={ai.tokensUsed} />
         <ListItem icon="file-tray-full" tone="teal" title={t('ai_settings.cached')} value={String(ai.cacheCount)} />
         {ai.cacheCount > 0 && <ListItem icon="trash" destructive title={t('ai_settings.clear_cache')} onPress={ai.clearCache} />}

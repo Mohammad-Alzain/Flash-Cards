@@ -42,6 +42,7 @@ export const Card: React.FC<CardProps> = ({
   const base: ViewStyle = {
     borderRadius: shape.card,
     padding: padding ?? 16,
+    overflow: 'hidden',
   };
 
   const look: Record<CardVariant, ViewStyle> = {

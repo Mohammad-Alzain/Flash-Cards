@@ -143,7 +143,7 @@ export function BulkRescheduleModal({ visible, selectedCardIds, deckName, onClos
             onChange={(v) => setStartTomorrow(v === 1)}
           />
           <AppText variant="bodySm" weight="bold" color="primary">
-            📊 {t('reschedule.estimate', { perDay: Math.ceil(count / Math.max(1, spreadDays)), days: spreadDays })}
+            {t('reschedule.estimate', { perDay: Math.ceil(count / Math.max(1, spreadDays)), days: spreadDays })}
           </AppText>
         </View>
       )}

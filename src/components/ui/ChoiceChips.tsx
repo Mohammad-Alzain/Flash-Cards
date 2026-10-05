@@ -23,6 +23,8 @@ interface ChoiceChipsProps<T extends string | number> {
   layout?: 'scroll' | 'wrap';
   color?: string;
   style?: StyleProp<ViewStyle>;
+  /** Allow chips to bleed out to screen edges when rendered directly on a padded screen. Defaults to false. */
+  bleed?: boolean;
 }
 
 /** Labelled single-select chip group. */
@@ -35,6 +37,7 @@ export function ChoiceChips<T extends string | number>({
   layout = 'wrap',
   color,
   style,
+  bleed = false,
 }: ChoiceChipsProps<T>) {
   const { colors } = useTheme();
   const dir = useDirection();
@@ -69,8 +72,8 @@ export function ChoiceChips<T extends string | number>({
           renderItem={({ item }) => item}
           ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
           showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -16 }}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
+          style={bleed ? { marginHorizontal: -16 } : undefined}
+          contentContainerStyle={bleed ? { paddingHorizontal: 16 } : undefined}
         />
       ) : (
         <Row gap={8} wrap>

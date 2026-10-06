@@ -49,6 +49,22 @@ const BACKUPS_DIR = `${FileSystem.documentDirectory}backups/`;
 const MEDIA_DIR = `${FileSystem.documentDirectory}media/`;
 const MAX_ROLLING_BACKUPS = 5;
 
+// JSZip's base64 output creates large intermediate binary strings that crash Hermes.
+// Instead, generate as uint8array and encode in small chunks to avoid string limits.
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const CHUNK = 3 * 8192; // 24KB per chunk — must be multiple of 3 for clean base64 padding
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    let binary = '';
+    const end = Math.min(i + CHUNK, bytes.length);
+    for (let j = i; j < end; j++) {
+      binary += String.fromCharCode(bytes[j]);
+    }
+    parts.push(btoa(binary));
+  }
+  return parts.join('');
+}
+
 export class BackupService {
   /**
    * Ensures the backups directory exists.
@@ -190,12 +206,13 @@ export class BackupService {
       mediaCount: metadata.mediaCount,
     });
 
-    // 6. Generate ZIP file with live compression progress
-    const zipBase64 = await zip.generateAsync(
+    // 6. Generate ZIP as Uint8Array (avoids JSZip's internal binary-string creation which
+    //    crashes Hermes when data is large), then encode to base64 in safe small chunks.
+    const zipUint8 = await zip.generateAsync(
       {
-        type: 'base64',
+        type: 'uint8array',
         compression: 'DEFLATE',
-        compressionOptions: { level: 6 },
+        compressionOptions: { level: 3 }, // level 6 is slow on mobile; 3 is a good speed/size tradeoff
       },
       (metadataObj) => {
         const compPct = Math.round(78 + (metadataObj.percent / 100) * 16);
@@ -229,6 +246,7 @@ export class BackupService {
     const fileName = `backup_${dateStr}.zip`;
     const targetPath = `${BACKUPS_DIR}${fileName}`;
 
+    const zipBase64 = uint8ArrayToBase64(zipUint8);
     await FileSystem.writeAsStringAsync(targetPath, zipBase64, {
       encoding: FileSystem.EncodingType.Base64,
     });
